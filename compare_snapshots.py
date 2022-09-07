@@ -50,25 +50,37 @@ def calculate_dev_in_pixels(arr, mode='left') -> np.ndarray:
     return dev_arr
 
 
+class BandData:
+    def __init__(self, left_wl_bound: int, right_wl_bound: int, snapshot: np.ndarray):
+        wl_ids = [wl_id for wl_id, wl in enumerate(snapshot[0]) if left_wl_bound < wl < right_wl_bound]
+        assert len(wl_ids) > 0
+        self.wave_lengths = snapshot[0, wl_ids]
+        band_data = snapshot[1:, wl_ids]
+
+        self.mean_agg_in_ch_by_px = band_data.mean(axis=0)
+        self.left_dev_agg_in_ch_by_px = band_data.mean(axis=0) + calculate_dev_in_channels(band_data, mode='left')
+        self.right_dev_in_ch_by_px = band_data.mean(axis=0) + calculate_dev_in_channels(band_data, mode='right')
+
+        self.mean_agg_in_px_by_ch = band_data.mean(axis=1)
+        self.left_dev_agg_in_px_by_ch = band_data.mean(axis=1) + calculate_dev_in_pixels(band_data, mode='left')
+        self.right_dev_agg_in_px_by_ch = band_data.mean(axis=1) + calculate_dev_in_pixels(band_data, mode='right')
+
+
+BAND_NAMES = ['red', 'infrared']
+
+
 class SnapshotMeta:
     def __init__(self, name: str, snapshot: np.ndarray):
         # crop x,y
         snapshot = snapshot[:, 2:]
 
         self.name = name
-        self.infrared_wave_lengths = snapshot[0, 82:]
-        infrared_data = snapshot[1:, 82:]
-        self.infrared_mean_agg_in_ch_by_px = infrared_data.mean(axis=0)
-        self.infrared_left_dev_agg_in_ch_by_px = infrared_data.mean(axis=0) \
-                                                 + calculate_dev_in_channels(infrared_data, mode='left')
-        self.infrared_right_dev_in_ch_by_px = infrared_data.mean(axis=0) \
-                                              + calculate_dev_in_channels(infrared_data, mode='right')
+        self.bands = {
+            'red': BandData(left_wl_bound=625, right_wl_bound=740, snapshot=snapshot),
+            'infrared': BandData(left_wl_bound=780, right_wl_bound=1000, snapshot=snapshot)
+        }
 
-        self.infrared_mean_agg_in_px_by_ch = infrared_data.mean(axis=1)
-        self.infrared_left_dev_agg_in_px_by_ch = infrared_data.mean(axis=1) \
-                                                 + calculate_dev_in_pixels(infrared_data, mode='left')
-        self.infrared_right_dev_agg_in_px_by_ch = infrared_data.mean(axis=1) \
-                                                  + calculate_dev_in_pixels(infrared_data, mode='right')
+        assert all([key in BAND_NAMES for key in self.bands.keys()])
 
 
 def parse_classes(classes_dict: Dict[str, List[str]], max_files_in_dir: int) -> Dict[str, List[SnapshotMeta]]:
@@ -99,33 +111,34 @@ def draw_snapshots_as_reflectance(group_features: Dict[str, List[SnapshotMeta]])
         for row_i, snapshot_meta in enumerate(group_list):
             # cast for ide
             snapshot_meta: SnapshotMeta = snapshot_meta
-            fig.add_trace(
-                go.Scatter(
-                    name=group_key,
-                    legendgroup=group_key,
-                    showlegend=row_i == 0,
-                    x=snapshot_meta.infrared_wave_lengths,
-                    y=snapshot_meta.infrared_mean_agg_in_ch_by_px,
-                    line=dict(color=f"rgba({','.join(color_tup)}, 100)")
-                ),
-                row=row_i + 1, col=col_i + 1
-            )
-            fig.add_trace(
-                go.Scatter(
-                    name=group_key,
-                    legendgroup=group_key,
-                    showlegend=row_i == 0,
-                    # x, then x reversed
-                    x=[*snapshot_meta.infrared_wave_lengths, *snapshot_meta.infrared_wave_lengths[::-1]],
-                    mode="markers+lines",
-                    fill='toself',
-                    line=dict(color=f"rgba({','.join(color_tup)}, 0)"),
-                    # upper, then lower reversed
-                    y=[*snapshot_meta.infrared_left_dev_agg_in_ch_by_px,
-                       *snapshot_meta.infrared_right_dev_in_ch_by_px[::-1]]
-                ),
-                row=row_i + 1, col=col_i + 1
-            )
+            for band_key, band_value in snapshot_meta.bands.items():
+                fig.add_trace(
+                    go.Scatter(
+                        name=group_key,
+                        legendgroup=group_key,
+                        showlegend=row_i == 0,
+                        x=band_value.wave_lengths,
+                        y=band_value.mean_agg_in_ch_by_px,
+                        line=dict(color=f"rgba({','.join(color_tup)}, 100)")
+                    ),
+                    row=row_i + 1, col=col_i + 1
+                )
+                fig.add_trace(
+                    go.Scatter(
+                        name=group_key,
+                        legendgroup=group_key,
+                        showlegend=row_i == 0,
+                        # x, then x reversed
+                        x=[*band_value.wave_lengths, *band_value.wave_lengths[::-1]],
+                        mode="markers+lines",
+                        fill='toself',
+                        line=dict(color=f"rgba({','.join(color_tup)}, 0)"),
+                        # upper, then lower reversed
+                        y=[*band_value.left_dev_agg_in_ch_by_px,
+                           *band_value.right_dev_in_ch_by_px[::-1]]
+                    ),
+                    row=row_i + 1, col=col_i + 1
+                )
     fig.update_xaxes(range=[700, 900])
     fig.update_yaxes(range=[8_000, 10_000])
     fig.update_layout(height=max_snapshots_in_class * 400, width=1800, title_text="classes reflectance comparison")
@@ -133,13 +146,16 @@ def draw_snapshots_as_reflectance(group_features: Dict[str, List[SnapshotMeta]])
 
 
 def get_features_df(group_features: Dict[str, List[SnapshotMeta]]) -> pd.DataFrame:
+    band_metrics = [
+        'mean_infrared_agg_by_pixels_sum',
+        'dev_infrared_agg_by_pixels_sum',
+
+        'mean_infrared_agg_by_channels_sum',
+        'dev_infrared_agg_by_channels_sum'
+    ]
+
     features_dict = {
-        'mean_infrared_agg_by_pixels_sum': [],
-        'dev_infrared_agg_by_pixels_sum': [],
-
-        'mean_infrared_agg_by_channels_sum': [],
-        'dev_infrared_agg_by_channels_sum': [],
-
+        **{f"{band_name}_{band_metric}": [] for band_name in BAND_NAMES for band_metric in band_metrics},
         'class': [],
         'name': []
     }
@@ -149,15 +165,20 @@ def get_features_df(group_features: Dict[str, List[SnapshotMeta]]) -> pd.DataFra
             # cast for ide
             snapshot_meta: SnapshotMeta = snapshot_meta
 
-            features_dict['mean_infrared_agg_by_pixels_sum'].append(snapshot_meta.infrared_mean_agg_in_ch_by_px.sum())
-            features_dict['dev_infrared_agg_by_pixels_sum'].append(
-                snapshot_meta.infrared_right_dev_in_ch_by_px.sum() - snapshot_meta.infrared_left_dev_agg_in_ch_by_px.sum()
-            )
+            for band_key, band_value in snapshot_meta.bands.items():
+                features_dict[f'{band_key}_mean_infrared_agg_by_pixels_sum'].append(
+                    band_value.mean_agg_in_ch_by_px.sum()
+                )
+                features_dict[f'{band_key}_dev_infrared_agg_by_pixels_sum'].append(
+                    band_value.right_dev_in_ch_by_px.sum() - band_value.left_dev_agg_in_ch_by_px.sum()
+                )
 
-            features_dict['mean_infrared_agg_by_channels_sum'].append(snapshot_meta.infrared_mean_agg_in_px_by_ch.sum())
-            features_dict['dev_infrared_agg_by_channels_sum'].append(
-                snapshot_meta.infrared_right_dev_agg_in_px_by_ch.sum() - snapshot_meta.infrared_left_dev_agg_in_px_by_ch.sum()
-            )
+                features_dict[f'{band_key}_mean_infrared_agg_by_channels_sum'].append(
+                    band_value.mean_agg_in_px_by_ch.sum()
+                )
+                features_dict[f'{band_key}_dev_infrared_agg_by_channels_sum'].append(
+                    band_value.right_dev_agg_in_px_by_ch.sum() - band_value.left_dev_agg_in_px_by_ch.sum()
+                )
 
             features_dict['class'].append(group_key)
 
@@ -216,25 +237,26 @@ def draw_files(classes_dict: Dict[str, List[str]], max_files_in_dir: int):
     draw_snapshots_as_reflectance(classes_features_dict)
 
     features_df = get_features_df(group_features=classes_features_dict)
-    draw_snapshots_as_features(
-        features_df=features_df,
-        x_key='mean_infrared_agg_by_pixels_sum',
-        y_key='dev_infrared_agg_by_pixels_sum',
-        x_title='Area under mean curve aggregated by pixels in infrared range',
-        y_title='Difference between area under right deviation and left deviation aggregated by pixels',
-        colors=['green', 'red'],
-        res_file='comparison_by_features_agg_by_pixels.html'
-    )
+    for band_name in BAND_NAMES:
+        draw_snapshots_as_features(
+            features_df=features_df,
+            x_key=f'{band_name}_mean_infrared_agg_by_pixels_sum',
+            y_key=f'{band_name}_dev_infrared_agg_by_pixels_sum',
+            x_title='Area under mean curve aggregated by pixels in infrared range',
+            y_title='Difference between area under right deviation and left deviation aggregated by pixels',
+            colors=['#4FD51D', '#FF9999', '#E70000', "#830000", "#180000"],
+            res_file=f'{band_name}_comparison_by_features_agg_by_pixels.html'
+        )
 
-    draw_snapshots_as_features(
-        features_df=features_df,
-        x_key='mean_infrared_agg_by_channels_sum',
-        y_key='dev_infrared_agg_by_channels_sum',
-        x_title='Area under mean curve aggregated by channels in infrared range',
-        y_title='Difference between area under right deviation and left deviation aggregated by channels',
-        colors=['green', 'red'],
-        res_file='comparison_by_features_agg_by_channels.html'
-    )
+        draw_snapshots_as_features(
+            features_df=features_df,
+            x_key=f'{band_name}_mean_infrared_agg_by_channels_sum',
+            y_key=f'{band_name}_dev_infrared_agg_by_channels_sum',
+            x_title='Area under mean curve aggregated by channels in infrared range',
+            y_title='Difference between area under right deviation and left deviation aggregated by channels',
+            colors=['#4FD51D', '#FF9999', '#E70000', "#830000", "#180000"],
+            res_file=f'{band_name}_comparison_by_features_agg_by_channels.html'
+        )
 
 
 if __name__ == '__main__':
@@ -250,14 +272,18 @@ if __name__ == '__main__':
                 'csv/phytophthora/gala-phytophthora-bp-1_000',
                 'csv/phytophthora/gala-phytophthora-bp-5-1_000',
             ],
-            # 'phyto2': [
-            #     'csv/phytophthora/gala-phytophthora-bp-2_000',
-            #     'csv/phytophthora/gala-phytophthora-bp-6-2_000',
-            # ],
-            # 'phyto3': [
-            #     'csv/phytophthora/gala-phytophthora-bp-2_000',
-            #     'csv/phytophthora/gala-phytophthora-bp-6-2_000',
-            # ],
+            'phyto2': [
+                'csv/phytophthora/gala-phytophthora-bp-2_000',
+                'csv/phytophthora/gala-phytophthora-bp-6-2_000',
+            ],
+            'phyto3': [
+                'csv/phytophthora/gala-phytophthora-bp-3_000',
+                'csv/phytophthora/gala-phytophthora-bp-7-3_000',
+            ],
+            'phyto4': [
+                'csv/phytophthora/gala-phytophthora-bp-4_000',
+                'csv/phytophthora/gala-phytophthora-bp-8-4_000',
+            ],
 
         },
         max_files_in_dir=10
