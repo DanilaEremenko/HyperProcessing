@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import os
 from plotly import graph_objs as go
 from plotly.subplots import make_subplots
+import pandas as pd
 
 
 def draw_klebs_np(ax, snapshot: np.ndarray, title: str):
@@ -35,7 +36,9 @@ def calculate_dev(arr, mode='left') -> np.ndarray:
 
 class SnapshotMeta:
     def __init__(self, name: str, snapshot: np.ndarray):
+        # crop x,y
         snapshot = snapshot[:, 2:]
+        # crop infrared part
         infrared_part = snapshot[1:, 82:]
 
         self.name = name
@@ -45,26 +48,24 @@ class SnapshotMeta:
         self.right_dev = infrared_part.mean(axis=0) + calculate_dev(infrared_part, mode='right')
 
 
-def parse_group_features(dir_list: List[str], names: List[str], max_files: int) -> Dict[str, List[SnapshotMeta]]:
-    group_features: Dict[str, List[SnapshotMeta]] = {name: [] for name in names}
-
-    for dir_id, (dir_path, name) in enumerate(zip(dir_list, names)):
-        features = group_features[name]
-        files = list(os.listdir(dir_path))[:max_files]
-
-        for file_id, file in enumerate(files):
-            snapshot = genfromtxt(
-                f'{dir_path}/{file}',
-                delimiter=','
-            )
-            # crop x,y
-            features.append(
-                SnapshotMeta(name=file, snapshot=snapshot)
-            )
-    return group_features
+def parse_classes(classes_dict: Dict[str, List[str]], max_files_in_dir: int) -> Dict[str, List[SnapshotMeta]]:
+    classes_features: Dict[str, List[SnapshotMeta]] = {class_name: [] for class_name in classes_dict.keys()}
+    for class_name, class_dirs in classes_dict.items():
+        features = classes_features[class_name]
+        for dir_path in class_dirs:
+            files = list(os.listdir(dir_path))[:max_files_in_dir]
+            for file_id, file in enumerate(files):
+                snapshot = genfromtxt(
+                    f'{dir_path}/{file}',
+                    delimiter=','
+                )
+                features.append(
+                    SnapshotMeta(name=file, snapshot=snapshot)
+                )
+    return classes_features
 
 
-def draw_snapshots(group_features: Dict[str, List[SnapshotMeta]]):
+def draw_snapshots_as_reflectance(group_features: Dict[str, List[SnapshotMeta]]):
     max_snapshots_in_class = max([len(snapshots) for snapshots in group_features.values()])
     fig = make_subplots(
         rows=max_snapshots_in_class,
@@ -102,17 +103,82 @@ def draw_snapshots(group_features: Dict[str, List[SnapshotMeta]]):
                 row=row_i + 1, col=col_i + 1
             )
     fig.update_layout(height=max_snapshots_in_class * 200, width=1800, title_text="classes reflectance comparison")
-    fig.write_html("comparison.html")
+    fig.write_html("comparison_by_reflectance.html")
 
 
-def draw_files(dir_list: List[str], names: List[str], max_files: int):
-    group_features = parse_group_features(dir_list=dir_list, names=names, max_files=max_files)
-    draw_snapshots(group_features)
+def get_features_df(group_features: Dict[str, List[SnapshotMeta]]) -> pd.DataFrame:
+    features_dict = {'f1': [], 'f2': [], 'class': []}
+
+    for col_i, (group_key, group_list) in enumerate(group_features.items()):
+        for row_i, snapshot_meta in enumerate(group_list):
+            # cast for ide
+            snapshot_meta: SnapshotMeta = snapshot_meta
+            features_dict['f1'].append(snapshot_meta.mean_infrared.sum())
+            features_dict['f2'].append(snapshot_meta.right_dev.sum() - snapshot_meta.left_dev.sum())
+            features_dict['class'].append(group_key)
+
+    features_df = pd.DataFrame(features_dict)
+    features_df['f1'] /= features_df['f1'].max()
+    features_df['f2'] /= features_df['f2'].max()
+    return features_df
+
+
+def draw_snapshots_as_features(features_df: pd.DataFrame, colors: List[str]):
+    fig = go.Figure()
+
+    for class_name, color in zip(list(features_df['class'].unique()), colors):
+        fig.add_trace(
+            go.Scatter(
+                name=class_name,
+                legendgroup=class_name,
+                mode='markers',
+                x=features_df[features_df['class'] == class_name]['f1'],
+                y=features_df[features_df['class'] == class_name]['f2'],
+                marker=dict(
+                    color=color,
+                    size=20,
+                    line=dict(
+                        color='Black',
+                        width=2
+                    )
+                ),
+            )
+        )
+
+    fig.update_layout(height=1280, width=1800, title_text="classes reflectance comparison")
+    fig.write_html("comparison_by_features.html")
+
+
+def draw_files(classes_dict: Dict[str, List[str]], max_files_in_dir: int):
+    classes_features_dict = parse_classes(classes_dict=classes_dict, max_files_in_dir=max_files_in_dir)
+    draw_snapshots_as_reflectance(classes_features_dict)
+
+    features_df = get_features_df(group_features=classes_features_dict)
+    draw_snapshots_as_features(features_df=features_df, colors=['green', 'red'])
 
 
 if __name__ == '__main__':
     draw_files(
-        dir_list=['csv/control/gala-control-bp-1_000', 'csv/phytophthora/gala-phytophthora-bp-1_000'],
-        names=['health', 'phytophtora'],
-        max_files=10
+        classes_dict={
+            'health': [
+                'csv/control/gala-control-bp-1_000',
+                'csv/control/gala-control-bp-2_000',
+                # 'csv/control/gala-control-bp-3_000',
+                # 'csv/control/gala-control-bp-4_000',
+            ],
+            'phyto1': [
+                'csv/phytophthora/gala-phytophthora-bp-1_000',
+                'csv/phytophthora/gala-phytophthora-bp-5-1_000',
+            ],
+            # 'phyto2': [
+            #     'csv/phytophthora/gala-phytophthora-bp-2_000',
+            #     'csv/phytophthora/gala-phytophthora-bp-6-2_000',
+            # ],
+            # 'phyto3': [
+            #     'csv/phytophthora/gala-phytophthora-bp-2_000',
+            #     'csv/phytophthora/gala-phytophthora-bp-6-2_000',
+            # ],
+
+        },
+        max_files_in_dir=10
     )
