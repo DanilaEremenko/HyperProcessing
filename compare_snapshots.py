@@ -102,7 +102,9 @@ def draw_snapshots_as_reflectance(group_features: Dict[str, List[SnapshotMeta]])
                 ),
                 row=row_i + 1, col=col_i + 1
             )
-    fig.update_layout(height=max_snapshots_in_class * 200, width=1800, title_text="classes reflectance comparison")
+    fig.update_xaxes(range=[700, 900])
+    fig.update_yaxes(range=[8_000, 10_000])
+    fig.update_layout(height=max_snapshots_in_class * 400, width=1800, title_text="classes reflectance comparison")
     fig.write_html("comparison_by_reflectance.html")
 
 
