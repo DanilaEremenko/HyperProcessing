@@ -18,7 +18,7 @@ def draw_klebs_np(ax, snapshot: np.ndarray, title: str):
     ax.set_title(title)
 
 
-def calculate_dev(arr, mode='left') -> np.ndarray:
+def calculate_dev_in_channels(arr, mode='left') -> np.ndarray:
     residuals = arr - arr.mean(axis=0)
     ch_num = residuals.shape[1]
     dev_arr = np.zeros(ch_num)
@@ -34,18 +34,41 @@ def calculate_dev(arr, mode='left') -> np.ndarray:
     return dev_arr
 
 
+def calculate_dev_in_pixels(arr, mode='left') -> np.ndarray:
+    residuals = arr - np.expand_dims(arr.mean(axis=1), axis=1)
+    pixels_num = residuals.shape[0]
+    dev_arr = np.zeros(pixels_num)
+    if mode == 'left':
+        for pix_id in range(pixels_num):
+            res_in_ch = residuals[pix_id]
+            dev_arr[pix_id] = res_in_ch[res_in_ch < 0].mean()
+    elif mode == 'right':
+        for pix_id in range(pixels_num):
+            res_in_ch = residuals[pix_id]
+            dev_arr[pix_id] = res_in_ch[res_in_ch > 0].mean()
+
+    return dev_arr
+
+
 class SnapshotMeta:
     def __init__(self, name: str, snapshot: np.ndarray):
         # crop x,y
         snapshot = snapshot[:, 2:]
-        # crop infrared part
-        infrared_part = snapshot[1:, 82:]
 
         self.name = name
-        self.wave_lengths = snapshot[0, 82:]
-        self.mean_infrared = infrared_part.mean(axis=0)
-        self.left_dev = infrared_part.mean(axis=0) + calculate_dev(infrared_part, mode='left')
-        self.right_dev = infrared_part.mean(axis=0) + calculate_dev(infrared_part, mode='right')
+        self.infrared_wave_lengths = snapshot[0, 82:]
+        infrared_data = snapshot[1:, 82:]
+        self.infrared_mean_agg_in_ch_by_px = infrared_data.mean(axis=0)
+        self.infrared_left_dev_agg_in_ch_by_px = infrared_data.mean(axis=0) \
+                                                 + calculate_dev_in_channels(infrared_data, mode='left')
+        self.infrared_right_dev_in_ch_by_px = infrared_data.mean(axis=0) \
+                                              + calculate_dev_in_channels(infrared_data, mode='right')
+
+        self.infrared_mean_agg_in_px_by_ch = infrared_data.mean(axis=1)
+        self.infrared_left_dev_agg_in_px_by_ch = infrared_data.mean(axis=1) \
+                                                 + calculate_dev_in_pixels(infrared_data, mode='left')
+        self.infrared_right_dev_agg_in_px_by_ch = infrared_data.mean(axis=1) \
+                                                  + calculate_dev_in_pixels(infrared_data, mode='right')
 
 
 def parse_classes(classes_dict: Dict[str, List[str]], max_files_in_dir: int) -> Dict[str, List[SnapshotMeta]]:
@@ -81,8 +104,8 @@ def draw_snapshots_as_reflectance(group_features: Dict[str, List[SnapshotMeta]])
                     name=group_key,
                     legendgroup=group_key,
                     showlegend=row_i == 0,
-                    x=snapshot_meta.wave_lengths,
-                    y=snapshot_meta.mean_infrared,
+                    x=snapshot_meta.infrared_wave_lengths,
+                    y=snapshot_meta.infrared_mean_agg_in_ch_by_px,
                     line=dict(color=f"rgba({','.join(color_tup)}, 100)")
                 ),
                 row=row_i + 1, col=col_i + 1
@@ -93,12 +116,13 @@ def draw_snapshots_as_reflectance(group_features: Dict[str, List[SnapshotMeta]])
                     legendgroup=group_key,
                     showlegend=row_i == 0,
                     # x, then x reversed
-                    x=[*snapshot_meta.wave_lengths, *snapshot_meta.wave_lengths[::-1]],
+                    x=[*snapshot_meta.infrared_wave_lengths, *snapshot_meta.infrared_wave_lengths[::-1]],
                     mode="markers+lines",
                     fill='toself',
                     line=dict(color=f"rgba({','.join(color_tup)}, 0)"),
                     # upper, then lower reversed
-                    y=[*snapshot_meta.left_dev, *snapshot_meta.right_dev[::-1]]
+                    y=[*snapshot_meta.infrared_left_dev_agg_in_ch_by_px,
+                       *snapshot_meta.infrared_right_dev_in_ch_by_px[::-1]]
                 ),
                 row=row_i + 1, col=col_i + 1
             )
@@ -109,15 +133,35 @@ def draw_snapshots_as_reflectance(group_features: Dict[str, List[SnapshotMeta]])
 
 
 def get_features_df(group_features: Dict[str, List[SnapshotMeta]]) -> pd.DataFrame:
-    features_dict = {'mean_infrared_sum': [], 'dev_infrared_sum': [], 'class': []}
+    features_dict = {
+        'mean_infrared_agg_by_pixels_sum': [],
+        'dev_infrared_agg_by_pixels_sum': [],
+
+        'mean_infrared_agg_by_channels_sum': [],
+        'dev_infrared_agg_by_channels_sum': [],
+
+        'class': [],
+        'name': []
+    }
 
     for col_i, (group_key, group_list) in enumerate(group_features.items()):
         for row_i, snapshot_meta in enumerate(group_list):
             # cast for ide
             snapshot_meta: SnapshotMeta = snapshot_meta
-            features_dict['mean_infrared_sum'].append(snapshot_meta.mean_infrared.sum())
-            features_dict['dev_infrared_sum'].append(snapshot_meta.right_dev.sum() - snapshot_meta.left_dev.sum())
+
+            features_dict['mean_infrared_agg_by_pixels_sum'].append(snapshot_meta.infrared_mean_agg_in_ch_by_px.sum())
+            features_dict['dev_infrared_agg_by_pixels_sum'].append(
+                snapshot_meta.infrared_right_dev_in_ch_by_px.sum() - snapshot_meta.infrared_left_dev_agg_in_ch_by_px.sum()
+            )
+
+            features_dict['mean_infrared_agg_by_channels_sum'].append(snapshot_meta.infrared_mean_agg_in_px_by_ch.sum())
+            features_dict['dev_infrared_agg_by_channels_sum'].append(
+                snapshot_meta.infrared_right_dev_agg_in_px_by_ch.sum() - snapshot_meta.infrared_left_dev_agg_in_px_by_ch.sum()
+            )
+
             features_dict['class'].append(group_key)
+
+            features_dict['name'].append(snapshot_meta.name)
 
     features_df = pd.DataFrame(features_dict)
 
@@ -133,7 +177,8 @@ def draw_snapshots_as_features(
         features_df: pd.DataFrame,
         x_key: str, y_key: str,
         x_title: str, y_title: str,
-        colors: List[str]
+        colors: List[str],
+        res_file: str
 ):
     fig = go.Figure()
 
@@ -143,6 +188,7 @@ def draw_snapshots_as_features(
                 name=class_name,
                 legendgroup=class_name,
                 mode='markers',
+                text=features_df[features_df['class'] == class_name]['name'],
                 x=features_df[features_df['class'] == class_name][x_key],
                 y=features_df[features_df['class'] == class_name][y_key],
                 marker=dict(
@@ -162,7 +208,7 @@ def draw_snapshots_as_features(
         yaxis_title=y_title,
         title_text="classes reflectance comparison"
     )
-    fig.write_html("comparison_by_features.html")
+    fig.write_html(res_file)
 
 
 def draw_files(classes_dict: Dict[str, List[str]], max_files_in_dir: int):
@@ -172,11 +218,22 @@ def draw_files(classes_dict: Dict[str, List[str]], max_files_in_dir: int):
     features_df = get_features_df(group_features=classes_features_dict)
     draw_snapshots_as_features(
         features_df=features_df,
-        x_key='mean_infrared_sum',
-        y_key='dev_infrared_sum',
-        x_title='Area under mean curve in infrared range',
-        y_title='Difference between area under right deviation and left deviation',
-        colors=['green', 'red']
+        x_key='mean_infrared_agg_by_pixels_sum',
+        y_key='dev_infrared_agg_by_pixels_sum',
+        x_title='Area under mean curve aggregated by pixels in infrared range',
+        y_title='Difference between area under right deviation and left deviation aggregated by pixels',
+        colors=['green', 'red'],
+        res_file='comparison_by_features_agg_by_pixels.html'
+    )
+
+    draw_snapshots_as_features(
+        features_df=features_df,
+        x_key='mean_infrared_agg_by_channels_sum',
+        y_key='dev_infrared_agg_by_channels_sum',
+        x_title='Area under mean curve aggregated by channels in infrared range',
+        y_title='Difference between area under right deviation and left deviation aggregated by channels',
+        colors=['green', 'red'],
+        res_file='comparison_by_features_agg_by_channels.html'
     )
 
 
