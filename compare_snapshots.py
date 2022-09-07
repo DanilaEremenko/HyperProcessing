@@ -107,23 +107,32 @@ def draw_snapshots_as_reflectance(group_features: Dict[str, List[SnapshotMeta]])
 
 
 def get_features_df(group_features: Dict[str, List[SnapshotMeta]]) -> pd.DataFrame:
-    features_dict = {'f1': [], 'f2': [], 'class': []}
+    features_dict = {'mean_infrared_sum': [], 'dev_infrared_sum': [], 'class': []}
 
     for col_i, (group_key, group_list) in enumerate(group_features.items()):
         for row_i, snapshot_meta in enumerate(group_list):
             # cast for ide
             snapshot_meta: SnapshotMeta = snapshot_meta
-            features_dict['f1'].append(snapshot_meta.mean_infrared.sum())
-            features_dict['f2'].append(snapshot_meta.right_dev.sum() - snapshot_meta.left_dev.sum())
+            features_dict['mean_infrared_sum'].append(snapshot_meta.mean_infrared.sum())
+            features_dict['dev_infrared_sum'].append(snapshot_meta.right_dev.sum() - snapshot_meta.left_dev.sum())
             features_dict['class'].append(group_key)
 
     features_df = pd.DataFrame(features_dict)
-    features_df['f1'] /= features_df['f1'].max()
-    features_df['f2'] /= features_df['f2'].max()
+
+    # normalize features
+    # for key in features_df.keys():
+    #     if key != 'class':
+    #         features_df[key] /= features_df[key].max()
+
     return features_df
 
 
-def draw_snapshots_as_features(features_df: pd.DataFrame, colors: List[str]):
+def draw_snapshots_as_features(
+        features_df: pd.DataFrame,
+        x_key: str, y_key: str,
+        x_title: str, y_title: str,
+        colors: List[str]
+):
     fig = go.Figure()
 
     for class_name, color in zip(list(features_df['class'].unique()), colors):
@@ -132,8 +141,8 @@ def draw_snapshots_as_features(features_df: pd.DataFrame, colors: List[str]):
                 name=class_name,
                 legendgroup=class_name,
                 mode='markers',
-                x=features_df[features_df['class'] == class_name]['f1'],
-                y=features_df[features_df['class'] == class_name]['f2'],
+                x=features_df[features_df['class'] == class_name][x_key],
+                y=features_df[features_df['class'] == class_name][y_key],
                 marker=dict(
                     color=color,
                     size=20,
@@ -145,7 +154,12 @@ def draw_snapshots_as_features(features_df: pd.DataFrame, colors: List[str]):
             )
         )
 
-    fig.update_layout(height=1280, width=1800, title_text="classes reflectance comparison")
+    fig.update_layout(
+        height=1280, width=1800,
+        xaxis_title=x_title,
+        yaxis_title=y_title,
+        title_text="classes reflectance comparison"
+    )
     fig.write_html("comparison_by_features.html")
 
 
@@ -154,7 +168,14 @@ def draw_files(classes_dict: Dict[str, List[str]], max_files_in_dir: int):
     draw_snapshots_as_reflectance(classes_features_dict)
 
     features_df = get_features_df(group_features=classes_features_dict)
-    draw_snapshots_as_features(features_df=features_df, colors=['green', 'red'])
+    draw_snapshots_as_features(
+        features_df=features_df,
+        x_key='mean_infrared_sum',
+        y_key='dev_infrared_sum',
+        x_title='Area under mean curve in infrared range',
+        y_title='Difference between area under right deviation and left deviation',
+        colors=['green', 'red']
+    )
 
 
 if __name__ == '__main__':
