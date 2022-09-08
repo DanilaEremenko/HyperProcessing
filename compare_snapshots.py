@@ -193,11 +193,12 @@ def draw_snapshots_as_reflectance(classes_dict: Dict[str, List[SnapshotMeta]], r
 
 def get_features_df(group_features: Dict[str, List[SnapshotMeta]]) -> pd.DataFrame:
     band_metrics = [
-        'mean_infrared_agg_in_channels_sum',
-        'dev_infrared_agg_in_channels_sum',
+        'mean_agg_in_channels_sum',
+        'dev_agg_in_channels_sum',
 
-        'mean_infrared_agg_in_pixels_sum',
-        'dev_infrared_agg_in_pixels_sum'
+        'mean_agg_in_pixels_sum',
+        'dev_agg_in_pixels_sum',
+        'left_dev_agg_in_pixels_sum'
     ]
 
     features_dict = {
@@ -212,18 +213,26 @@ def get_features_df(group_features: Dict[str, List[SnapshotMeta]]) -> pd.DataFra
             snapshot_meta: SnapshotMeta = snapshot_meta
 
             for band_key, band_value in snapshot_meta.bands.items():
-                features_dict[f'{band_key}_mean_infrared_agg_in_channels_sum'].append(
+                # cast for ide
+                band_value: BandData = band_value
+
+                features_dict[f'{band_key}_mean_agg_in_channels_sum'].append(
                     band_value.mean_agg_in_ch_by_px.sum()
                 )
-                features_dict[f'{band_key}_dev_infrared_agg_in_channels_sum'].append(
+                features_dict[f'{band_key}_dev_agg_in_channels_sum'].append(
                     band_value.right_dev_in_ch_by_px.sum() - band_value.left_dev_agg_in_ch_by_px.sum()
                 )
 
-                features_dict[f'{band_key}_mean_infrared_agg_in_pixels_sum'].append(
+                features_dict[f'{band_key}_mean_agg_in_pixels_sum'].append(
                     band_value.mean_agg_in_px_by_ch.sum()
                 )
-                features_dict[f'{band_key}_dev_infrared_agg_in_pixels_sum'].append(
+                features_dict[f'{band_key}_dev_agg_in_pixels_sum'].append(
                     band_value.right_dev_agg_in_px_by_ch.sum() - band_value.left_dev_agg_in_px_by_ch.sum()
+                )
+
+                features_dict[f'{band_key}_left_dev_agg_in_pixels_sum'].append(
+                    band_value.left_dev_agg_in_px_by_ch.sum()
+                    # band_value.mean_agg_in_px_by_ch
                 )
 
             features_dict['class'].append(group_key)
@@ -288,8 +297,8 @@ def draw_files(classes_dict: Dict[str, List[str]], max_files_in_dir: int):
     for band_name in BANDS_DICT.keys():
         draw_snapshots_as_features(
             features_df=features_df,
-            x_key=f'{band_name}_mean_infrared_agg_in_channels_sum',
-            y_key=f'{band_name}_dev_infrared_agg_in_channels_sum',
+            x_key=f'{band_name}_mean_agg_in_channels_sum',
+            y_key=f'{band_name}_dev_agg_in_channels_sum',
             x_title=f'Area under mean curve aggregated by pixels in in channels in {band_name} range',
             y_title='Area between right deviation and left deviation aggregated by pixels in channels',
             title="comparison of snapshots aggregated in channels",
@@ -299,13 +308,24 @@ def draw_files(classes_dict: Dict[str, List[str]], max_files_in_dir: int):
 
         draw_snapshots_as_features(
             features_df=features_df,
-            x_key=f'{band_name}_mean_infrared_agg_in_pixels_sum',
-            y_key=f'{band_name}_dev_infrared_agg_in_pixels_sum',
+            x_key=f'{band_name}_mean_agg_in_pixels_sum',
+            y_key=f'{band_name}_dev_agg_in_pixels_sum',
             x_title=f'Area under mean curve aggregated by channels in pixels in {band_name} range',
             y_title='Area between right deviation and left deviation aggregated by channels in pixels',
             title="comparison of snapshots aggregated in pixels",
             colors=['#4FD51D', '#FF9999', '#E70000', "#830000", "#180000"],
             res_path=f'{band_name}_comparison_by_features_agg_in_pixels.html'
+        )
+
+        draw_snapshots_as_features(
+            features_df=features_df,
+            x_key=f'{band_name}_mean_agg_in_pixels_sum',
+            y_key=f'{band_name}_left_dev_agg_in_pixels_sum',
+            x_title=f'Area under mean curve aggregated by channels in pixels in {band_name} range',
+            y_title='Area under left deviation aggregated by channels in pixels',
+            title="comparison of snapshots aggregated in pixels by left deviation",
+            colors=['#4FD51D', '#FF9999', '#E70000', "#830000", "#180000"],
+            res_path=f'{band_name}_comparison_by_features_agg_in_pixels_sum.html'
         )
 
 
