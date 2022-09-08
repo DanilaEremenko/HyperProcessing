@@ -1,4 +1,4 @@
-from typing import List, Dict
+from typing import List, Dict, Optional
 
 import numpy as np
 from numpy import genfromtxt
@@ -66,7 +66,12 @@ class BandData:
         self.right_dev_agg_in_px_by_ch = band_data.mean(axis=1) + calculate_dev_in_pixels(band_data, mode='right')
 
 
-BAND_NAMES = ['red', 'infrared']
+BANDS_DICT = {
+    # 'blue': (440, 485), 'cyan': (485, 500), 'green': (500, 565), 'yellow': (565, 590),
+    # 'orange': (590, 625), 'red': (625, 780),
+    # 'visible': (440, 780),
+    'infrared': (780, 1000)
+}
 
 
 class SnapshotMeta:
@@ -76,11 +81,9 @@ class SnapshotMeta:
 
         self.name = name
         self.bands = {
-            'red': BandData(left_wl_bound=625, right_wl_bound=740, snapshot=snapshot),
-            'infrared': BandData(left_wl_bound=780, right_wl_bound=1000, snapshot=snapshot)
+            band_name: BandData(left_wl_bound=band_range[0], right_wl_bound=band_range[1], snapshot=snapshot)
+            for band_name, band_range in BANDS_DICT.items()
         }
-
-        assert all([key in BAND_NAMES for key in self.bands.keys()])
 
 
 def parse_classes(classes_dict: Dict[str, List[str]], max_files_in_dir: int) -> Dict[str, List[SnapshotMeta]]:
@@ -100,62 +103,105 @@ def parse_classes(classes_dict: Dict[str, List[str]], max_files_in_dir: int) -> 
     return classes_features
 
 
-def draw_snapshots_as_reflectance(group_features: Dict[str, List[SnapshotMeta]]):
-    max_snapshots_in_class = max([len(snapshots) for snapshots in group_features.values()])
+def draw_snapshots_as_reflectance(classes_dict: Dict[str, List[SnapshotMeta]], res_path: str, mode='ch'):
+    max_snapshots_in_class = max([len(snapshots) for snapshots in classes_dict.values()])
     fig = make_subplots(
         rows=max_snapshots_in_class,
-        cols=len(group_features)
+        cols=len(classes_dict)
     )
-    colors = [('0', '180', '0'), ('180', '0', '0')]
-    for col_i, ((group_key, group_list), color_tup) in enumerate(zip(group_features.items(), colors)):
+    colors = [('0', '180', '0'), ('255', '153', '153'), ('250', '0', '0'), ('113', '12', '12'), ('10', '10', '10')]
+
+    assert len(colors) >= len(classes_dict)
+
+    for col_i, ((group_key, group_list), color_tup) in enumerate(zip(classes_dict.items(), colors)):
         for row_i, snapshot_meta in enumerate(group_list):
             # cast for ide
             snapshot_meta: SnapshotMeta = snapshot_meta
-            for band_key, band_value in snapshot_meta.bands.items():
-                fig.add_trace(
-                    go.Scatter(
-                        name=group_key,
-                        legendgroup=group_key,
-                        showlegend=row_i == 0,
-                        x=band_value.wave_lengths,
-                        y=band_value.mean_agg_in_ch_by_px,
-                        line=dict(color=f"rgba({','.join(color_tup)}, 100)")
-                    ),
-                    row=row_i + 1, col=col_i + 1
-                )
-                fig.add_trace(
-                    go.Scatter(
-                        name=group_key,
-                        legendgroup=group_key,
-                        showlegend=row_i == 0,
-                        # x, then x reversed
-                        x=[*band_value.wave_lengths, *band_value.wave_lengths[::-1]],
-                        mode="markers+lines",
-                        fill='toself',
-                        line=dict(color=f"rgba({','.join(color_tup)}, 0)"),
-                        # upper, then lower reversed
-                        y=[*band_value.left_dev_agg_in_ch_by_px,
-                           *band_value.right_dev_in_ch_by_px[::-1]]
-                    ),
-                    row=row_i + 1, col=col_i + 1
-                )
-    fig.update_xaxes(range=[700, 900])
-    fig.update_yaxes(range=[8_000, 10_000])
-    fig.update_layout(height=max_snapshots_in_class * 400, width=1800, title_text="classes reflectance comparison")
-    fig.write_html("comparison_by_reflectance.html")
+            for band_i, (band_key, band_value) in enumerate(snapshot_meta.bands.items()):
+                band_value: BandData = band_value
+                if mode == 'ch':
+                    # vector of wavelengths representation
+                    fig.add_trace(
+                        go.Scatter(
+                            name=group_key,
+                            legendgroup=group_key,
+                            showlegend=row_i == 0 and band_i == 0,
+                            x=band_value.wave_lengths,
+                            y=band_value.mean_agg_in_ch_by_px,
+                            line=dict(color=f"rgba({','.join(color_tup)}, 100)")
+                        ),
+                        row=row_i + 1, col=col_i + 1
+                    )
+                    fig.add_trace(
+                        go.Scatter(
+                            name=group_key,
+                            legendgroup=group_key,
+                            showlegend=row_i == 0 and band_i == 0,
+                            # x, then x reversed
+                            x=[*band_value.wave_lengths, *band_value.wave_lengths[::-1]],
+                            mode="markers+lines",
+                            fill='toself',
+                            line=dict(color=f"rgba({','.join(color_tup)}, 0)"),
+                            # upper, then lower reversed
+                            y=[*band_value.left_dev_agg_in_ch_by_px,
+                               *band_value.right_dev_in_ch_by_px[::-1]]
+                        ),
+                        row=row_i + 1, col=col_i + 1
+                    )
+                elif mode == 'px':
+                    fig.add_trace(
+                        go.Scatter(
+                            name=group_key,
+                            legendgroup=group_key,
+                            showlegend=row_i == 0 and band_i == 0,
+                            x=list(range(len(band_value.mean_agg_in_px_by_ch))),
+                            y=band_value.mean_agg_in_px_by_ch,
+                            line=dict(color=f"rgba({','.join(color_tup)}, 100)")
+                        ),
+                        row=row_i + 1, col=col_i + 1
+                    )
+                    fig.add_trace(
+                        go.Scatter(
+                            name=group_key,
+                            legendgroup=group_key,
+                            showlegend=row_i == 0 and band_i == 0,
+                            # x, then x reversed
+                            x=[*list(range(len(band_value.mean_agg_in_px_by_ch))),
+                               *list(range(len(band_value.mean_agg_in_px_by_ch)))[::-1]],
+                            mode="markers+lines",
+                            fill='toself',
+                            line=dict(color=f"rgba({','.join(color_tup)}, 0)"),
+                            # upper, then lower reversed
+                            y=[*band_value.left_dev_agg_in_px_by_ch,
+                               *band_value.right_dev_agg_in_px_by_ch[::-1]]
+                        ),
+                        row=row_i + 1, col=col_i + 1
+                    )
+                else:
+                    raise Exception("Undefined mode")
+    if mode == 'ch':
+        fig.update_xaxes(range=[0, 900])
+        fig.update_yaxes(range=[0, 10_000])
+    elif mode == 'px':
+        fig.update_xaxes(range=[0, 1500])
+        fig.update_yaxes(range=[0, 15_000])
+
+    fig.update_layout(height=max_snapshots_in_class * 400, width=2500,
+                      title_text="classes reflectance comparison")
+    fig.write_html(res_path)
 
 
 def get_features_df(group_features: Dict[str, List[SnapshotMeta]]) -> pd.DataFrame:
     band_metrics = [
-        'mean_infrared_agg_by_pixels_sum',
-        'dev_infrared_agg_by_pixels_sum',
+        'mean_infrared_agg_in_channels_sum',
+        'dev_infrared_agg_in_channels_sum',
 
-        'mean_infrared_agg_by_channels_sum',
-        'dev_infrared_agg_by_channels_sum'
+        'mean_infrared_agg_in_pixels_sum',
+        'dev_infrared_agg_in_pixels_sum'
     ]
 
     features_dict = {
-        **{f"{band_name}_{band_metric}": [] for band_name in BAND_NAMES for band_metric in band_metrics},
+        **{f"{band_name}_{band_metric}": [] for band_name in BANDS_DICT.keys() for band_metric in band_metrics},
         'class': [],
         'name': []
     }
@@ -166,17 +212,17 @@ def get_features_df(group_features: Dict[str, List[SnapshotMeta]]) -> pd.DataFra
             snapshot_meta: SnapshotMeta = snapshot_meta
 
             for band_key, band_value in snapshot_meta.bands.items():
-                features_dict[f'{band_key}_mean_infrared_agg_by_pixels_sum'].append(
+                features_dict[f'{band_key}_mean_infrared_agg_in_channels_sum'].append(
                     band_value.mean_agg_in_ch_by_px.sum()
                 )
-                features_dict[f'{band_key}_dev_infrared_agg_by_pixels_sum'].append(
+                features_dict[f'{band_key}_dev_infrared_agg_in_channels_sum'].append(
                     band_value.right_dev_in_ch_by_px.sum() - band_value.left_dev_agg_in_ch_by_px.sum()
                 )
 
-                features_dict[f'{band_key}_mean_infrared_agg_by_channels_sum'].append(
+                features_dict[f'{band_key}_mean_infrared_agg_in_pixels_sum'].append(
                     band_value.mean_agg_in_px_by_ch.sum()
                 )
-                features_dict[f'{band_key}_dev_infrared_agg_by_channels_sum'].append(
+                features_dict[f'{band_key}_dev_infrared_agg_in_pixels_sum'].append(
                     band_value.right_dev_agg_in_px_by_ch.sum() - band_value.left_dev_agg_in_px_by_ch.sum()
                 )
 
@@ -198,8 +244,9 @@ def draw_snapshots_as_features(
         features_df: pd.DataFrame,
         x_key: str, y_key: str,
         x_title: str, y_title: str,
+        title: str,
         colors: List[str],
-        res_file: str
+        res_path: str
 ):
     fig = go.Figure()
 
@@ -227,35 +274,38 @@ def draw_snapshots_as_features(
         height=1280, width=1800,
         xaxis_title=x_title,
         yaxis_title=y_title,
-        title_text="classes reflectance comparison"
+        title_text=title
     )
-    fig.write_html(res_file)
+    fig.write_html(res_path)
 
 
 def draw_files(classes_dict: Dict[str, List[str]], max_files_in_dir: int):
     classes_features_dict = parse_classes(classes_dict=classes_dict, max_files_in_dir=max_files_in_dir)
-    draw_snapshots_as_reflectance(classes_features_dict)
+    draw_snapshots_as_reflectance(classes_features_dict, res_path='comparison_by_agg_in_channels.html', mode='ch')
+    draw_snapshots_as_reflectance(classes_features_dict, res_path='comparison_by_agg_in_pixels.html', mode='px')
 
     features_df = get_features_df(group_features=classes_features_dict)
-    for band_name in BAND_NAMES:
+    for band_name in BANDS_DICT.keys():
         draw_snapshots_as_features(
             features_df=features_df,
-            x_key=f'{band_name}_mean_infrared_agg_by_pixels_sum',
-            y_key=f'{band_name}_dev_infrared_agg_by_pixels_sum',
-            x_title='Area under mean curve aggregated by pixels in infrared range',
-            y_title='Difference between area under right deviation and left deviation aggregated by pixels',
+            x_key=f'{band_name}_mean_infrared_agg_in_channels_sum',
+            y_key=f'{band_name}_dev_infrared_agg_in_channels_sum',
+            x_title=f'Area under mean curve aggregated by pixels in in channels in {band_name} range',
+            y_title='Area between right deviation and left deviation aggregated by pixels in channels',
+            title="comparison of snapshots aggregated in channels",
             colors=['#4FD51D', '#FF9999', '#E70000', "#830000", "#180000"],
-            res_file=f'{band_name}_comparison_by_features_agg_by_pixels.html'
+            res_path=f'{band_name}_comparison_by_features_agg_in_channels.html'
         )
 
         draw_snapshots_as_features(
             features_df=features_df,
-            x_key=f'{band_name}_mean_infrared_agg_by_channels_sum',
-            y_key=f'{band_name}_dev_infrared_agg_by_channels_sum',
-            x_title='Area under mean curve aggregated by channels in infrared range',
-            y_title='Difference between area under right deviation and left deviation aggregated by channels',
+            x_key=f'{band_name}_mean_infrared_agg_in_pixels_sum',
+            y_key=f'{band_name}_dev_infrared_agg_in_pixels_sum',
+            x_title=f'Area under mean curve aggregated by channels in pixels in {band_name} range',
+            y_title='Area between right deviation and left deviation aggregated by channels in pixels',
+            title="comparison of snapshots aggregated in pixels",
             colors=['#4FD51D', '#FF9999', '#E70000', "#830000", "#180000"],
-            res_file=f'{band_name}_comparison_by_features_agg_by_channels.html'
+            res_path=f'{band_name}_comparison_by_features_agg_in_pixels.html'
         )
 
 
@@ -272,18 +322,18 @@ if __name__ == '__main__':
                 'csv/phytophthora/gala-phytophthora-bp-1_000',
                 'csv/phytophthora/gala-phytophthora-bp-5-1_000',
             ],
-            'phyto2': [
-                'csv/phytophthora/gala-phytophthora-bp-2_000',
-                'csv/phytophthora/gala-phytophthora-bp-6-2_000',
-            ],
-            'phyto3': [
-                'csv/phytophthora/gala-phytophthora-bp-3_000',
-                'csv/phytophthora/gala-phytophthora-bp-7-3_000',
-            ],
-            'phyto4': [
-                'csv/phytophthora/gala-phytophthora-bp-4_000',
-                'csv/phytophthora/gala-phytophthora-bp-8-4_000',
-            ],
+            # 'phyto2': [
+            #     'csv/phytophthora/gala-phytophthora-bp-2_000',
+            #     'csv/phytophthora/gala-phytophthora-bp-6-2_000',
+            # ],
+            # 'phyto3': [
+            #     'csv/phytophthora/gala-phytophthora-bp-3_000',
+            #     'csv/phytophthora/gala-phytophthora-bp-7-3_000',
+            # ],
+            # 'phyto4': [
+            #     'csv/phytophthora/gala-phytophthora-bp-4_000',
+            #     'csv/phytophthora/gala-phytophthora-bp-8-4_000',
+            # ],
 
         },
         max_files_in_dir=10
