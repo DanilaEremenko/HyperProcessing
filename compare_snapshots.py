@@ -1,3 +1,4 @@
+from pathlib import Path
 from typing import List, Dict, Optional
 
 import numpy as np
@@ -50,12 +51,30 @@ def calculate_dev_in_pixels(arr, mode='left') -> np.ndarray:
     return dev_arr
 
 
+RES_DIR = Path('comparison_left_confidence')
+RES_DIR.mkdir(exist_ok=True)
+
+
 class BandData:
+    def get_left_confidence_interval_pixels(self, band_data: np.ndarray, left_part: float) -> list:
+        assert 0 <= left_part <= 1
+        all_mean_agg_in_px_by_ch = band_data.mean(axis=1)
+        df = pd.DataFrame({
+            'pix_id': list(range(len(all_mean_agg_in_px_by_ch))),
+            'pix_mean': all_mean_agg_in_px_by_ch
+        }).sort_values(['pix_mean']).iloc[:int(len(all_mean_agg_in_px_by_ch) * left_part)]
+
+        return band_data[list(df['pix_id'])]
+
     def __init__(self, left_wl_bound: int, right_wl_bound: int, snapshot: np.ndarray):
         wl_ids = [wl_id for wl_id, wl in enumerate(snapshot[0]) if left_wl_bound < wl < right_wl_bound]
         assert len(wl_ids) > 0
         self.wave_lengths = snapshot[0, wl_ids]
+
+        # filter wavelengths
         band_data = snapshot[1:, wl_ids]
+        # filter pixels
+        band_data = self.get_left_confidence_interval_pixels(band_data, left_part=0.05)
 
         self.mean_agg_in_ch_by_px = band_data.mean(axis=0)
         self.left_dev_agg_in_ch_by_px = band_data.mean(axis=0) + calculate_dev_in_channels(band_data, mode='left')
@@ -290,8 +309,10 @@ def draw_snapshots_as_features(
 
 def draw_files(classes_dict: Dict[str, List[str]], max_files_in_dir: int):
     classes_features_dict = parse_classes(classes_dict=classes_dict, max_files_in_dir=max_files_in_dir)
-    draw_snapshots_as_reflectance(classes_features_dict, res_path='comparison_by_agg_in_channels.html', mode='ch')
-    draw_snapshots_as_reflectance(classes_features_dict, res_path='comparison_by_agg_in_pixels.html', mode='px')
+    draw_snapshots_as_reflectance(classes_features_dict, res_path=f'{RES_DIR}/comparison_by_agg_in_channels.html',
+                                  mode='ch')
+    draw_snapshots_as_reflectance(classes_features_dict, res_path=f'{RES_DIR}/comparison_by_agg_in_pixels.html',
+                                  mode='px')
 
     features_df = get_features_df(group_features=classes_features_dict)
     for band_name in BANDS_DICT.keys():
@@ -303,7 +324,7 @@ def draw_files(classes_dict: Dict[str, List[str]], max_files_in_dir: int):
             y_title='Area between right deviation and left deviation aggregated by pixels in channels',
             title="comparison of snapshots aggregated in channels",
             colors=['#4FD51D', '#FF9999', '#E70000', "#830000", "#180000"],
-            res_path=f'{band_name}_comparison_by_features_agg_in_channels.html'
+            res_path=f'{RES_DIR}/{band_name}_comparison_by_features_agg_in_channels.html'
         )
 
         draw_snapshots_as_features(
@@ -314,18 +335,7 @@ def draw_files(classes_dict: Dict[str, List[str]], max_files_in_dir: int):
             y_title='Area between right deviation and left deviation aggregated by channels in pixels',
             title="comparison of snapshots aggregated in pixels",
             colors=['#4FD51D', '#FF9999', '#E70000', "#830000", "#180000"],
-            res_path=f'{band_name}_comparison_by_features_agg_in_pixels.html'
-        )
-
-        draw_snapshots_as_features(
-            features_df=features_df,
-            x_key=f'{band_name}_mean_agg_in_pixels_sum',
-            y_key=f'{band_name}_left_dev_agg_in_pixels_sum',
-            x_title=f'Area under mean curve aggregated by channels in pixels in {band_name} range',
-            y_title='Area under left deviation aggregated by channels in pixels',
-            title="comparison of snapshots aggregated in pixels by left deviation",
-            colors=['#4FD51D', '#FF9999', '#E70000', "#830000", "#180000"],
-            res_path=f'{band_name}_comparison_by_features_agg_in_pixels_sum.html'
+            res_path=f'{RES_DIR}/{band_name}_comparison_by_features_agg_in_pixels.html'
         )
 
 
@@ -356,5 +366,5 @@ if __name__ == '__main__':
             # ],
 
         },
-        max_files_in_dir=10
+        max_files_in_dir=30
     )
