@@ -76,15 +76,29 @@ class BandData:
 
         return band_data[list(df['pix_id'])]
 
-    def get_pixels_by_ch_id(self, ch_id: int) -> np.ndarray:
+    def get_band_data_in_ch_id(self, ch_id: int) -> np.ndarray:
         return self.band_data[:, ch_id]
 
-    def get_pixels_by_wl(self, target_wl: int) -> np.ndarray:
+    def get_band_data_in_wl(self, target_wl: int) -> np.ndarray:
         ch_id = [i for i, wl in enumerate(self.wave_lengths) if wl == target_wl][0]
-        return self.get_pixels_by_ch_id(ch_id=ch_id)
+        return self.get_band_data_in_ch_id(ch_id=ch_id)
 
     def get_band_corr_df(self) -> pd.DataFrame:
         return pd.DataFrame({str(wl): self.band_data[:, i] for i, wl in enumerate(self.wave_lengths)}).corr()
+
+    def get_too_low_pxs_sum(self) -> float:
+        return self.get_filtered_interval_pixels(
+            band_data=np.expand_dims(self.get_band_data_in_wl(target_wl=718), 1),
+            mode='save_left',
+            part=0.05
+        ).sum()
+
+    def get_too_high_pxs_sum(self) -> float:
+        return self.get_filtered_interval_pixels(
+            band_data=np.expand_dims(self.get_band_data_in_wl(target_wl=718), 1),
+            mode='save_right',
+            part=0.01
+        ).sum()
 
     def __init__(self, left_wl_bound: int, right_wl_bound: int, all_data: np.ndarray):
         # separate coordinates and snapshot data
@@ -99,7 +113,7 @@ class BandData:
         # filter wavelengths
         band_data = snapshot[1:, wl_ids]
         # filter pixels
-        # band_data = self.get_filtered_interval_pixels(band_data, mode='crop_right', part=0.1)
+        band_data = self.get_filtered_interval_pixels(band_data, mode='crop_right', part=0.1)
 
         self.mean_agg_in_ch_by_px = band_data.mean(axis=0)
         self.left_dev_agg_in_ch_by_px = band_data.mean(axis=0) + calculate_dev_in_channels(band_data, mode='left')
@@ -241,7 +255,9 @@ def get_features_df(group_features: Dict[str, List[SnapshotMeta]]) -> pd.DataFra
 
         'mean_agg_in_pixels_sum',
         'dev_agg_in_pixels_sum',
-        'left_dev_agg_in_pixels_sum'
+
+        'too_low_pxs_sum',
+        'too_high_pxs_sum'
     ]
 
     features_dict = {
@@ -273,10 +289,9 @@ def get_features_df(group_features: Dict[str, List[SnapshotMeta]]) -> pd.DataFra
                     band_value.right_dev_agg_in_px_by_ch.sum() - band_value.left_dev_agg_in_px_by_ch.sum()
                 )
 
-                features_dict[f'{band_key}_left_dev_agg_in_pixels_sum'].append(
-                    band_value.left_dev_agg_in_px_by_ch.sum()
-                    # band_value.mean_agg_in_px_by_ch
-                )
+                features_dict[f'{band_key}_too_low_pxs_sum'].append(band_value.get_too_low_pxs_sum())
+
+                features_dict[f'{band_key}_too_high_pxs_sum'].append(band_value.get_too_high_pxs_sum())
 
             features_dict['class'].append(group_key)
 
@@ -359,7 +374,7 @@ def draw_detailed_comparison(
                 fig.add_trace(
                     go.Heatmap(
                         visible=False,
-                        z=snapshot.bands['all'].get_pixels_by_ch_id(ch_id=wl_id),
+                        z=snapshot.bands['all'].get_band_data_in_ch_id(ch_id=wl_id),
                         x=norm_x + row_i * max_snap_width,
                         y=norm_y + col_i * max_snap_height,
                         hoverongaps=False
@@ -367,7 +382,7 @@ def draw_detailed_comparison(
                 )
                 if wl_id == 0:
                     fig.add_annotation(
-                        x=(norm_x + row_i * max_snap_width).max() / 2,
+                        x=(norm_x + row_i * max_snap_width).max(),
                         y=(norm_y + col_i * max_snap_height).max(),
                         xref="x",
                         yref="y",
@@ -462,6 +477,17 @@ def draw_files(classes_dict: Dict[str, List[str]], max_files_in_dir: int):
             res_path=f'{RES_DIR}/{band_name}_comparison_by_features_agg_in_pixels.html'
         )
 
+    draw_snapshots_as_features(
+        features_df=features_df,
+        x_key=f'{band_name}_too_low_pxs_sum',
+        y_key=f'{band_name}_too_high_pxs_sum',
+        x_title='To low pxs sum 718 nm',
+        y_title='To high pxs sum 718 nm',
+        title="comparison of snapshots aggregated in pixels",
+        colors=['#4FD51D', '#FF9999', '#E70000', "#830000", "#180000"],
+        res_path=f'{RES_DIR}/{band_name}_comparison_by_718_nm.html'
+    )
+
 
 if __name__ == '__main__':
     draw_files(
@@ -490,5 +516,5 @@ if __name__ == '__main__':
             # ],
 
         },
-        max_files_in_dir=10
+        max_files_in_dir=30
     )
