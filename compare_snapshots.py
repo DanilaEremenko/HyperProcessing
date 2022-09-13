@@ -73,6 +73,9 @@ class BandData:
         ch_id = [i for i, wl in enumerate(self.wave_lengths) if wl == target_wl][0]
         return self.get_pixels_by_ch_id(ch_id=ch_id)
 
+    def get_band_corr_df(self) -> pd.DataFrame:
+        return pd.DataFrame({str(wl): self.band_data[:, i] for i, wl in enumerate(self.wave_lengths)}).corr()
+
     def __init__(self, left_wl_bound: int, right_wl_bound: int, all_data: np.ndarray):
         # separate coordinates and snapshot data
         self.coordinates = all_data[1:, :2]
@@ -339,7 +342,7 @@ def draw_detailed_comparison(
     fig = go.Figure()
 
     for wl_id, _ in enumerate(wl_lengths):
-        for col_i, class_snapshots in enumerate(all_classes):
+        for col_i, class_snapshots in enumerate(all_classes[::-1]):
             for row_i, snapshot in enumerate(class_snapshots):
                 norm_x = snapshot.bands['all'].coordinates[:, 0] - min(snapshot.bands['all'].coordinates[:, 0])
                 norm_y = snapshot.bands['all'].coordinates[:, 1] - min(snapshot.bands['all'].coordinates[:, 1])
@@ -384,6 +387,11 @@ def draw_detailed_comparison(
         sliders=sliders
     )
 
+    fig.update_coloraxes(
+        showscale=False,
+        # colorbar=dict(showticklabels=False)
+    )
+
     fig.write_html(res_path)
 
 
@@ -418,19 +426,11 @@ def draw_files(classes_dict: Dict[str, List[str]], max_files_in_dir: int):
             res_path=f'{RES_DIR}/{band_name}_comparison_by_features_agg_in_pixels.html'
         )
 
-    draw_detailed_comparison(
-        all_classes=[
-            classes_features_dict['health'][0:2],
-            classes_features_dict['phyto1'][0:2],
-            classes_features_dict['phyto2'][0:2]
-        ],
-        classes_names=[
-            'health',
-            'phyto1',
-            'phyto2'
-        ],
-        res_path=f'{RES_DIR}/classes_comparison_by_features.html'
-    )
+        draw_detailed_comparison(
+            all_classes=[classes_features_dict[key][0:2] for key in classes_features_dict.keys()],
+            classes_names=[key for key in classes_features_dict.keys()],
+            res_path=f'{RES_DIR}/classes_comparison_by_features.html'
+        )
 
 
 if __name__ == '__main__':
@@ -450,14 +450,14 @@ if __name__ == '__main__':
                 'csv/phytophthora/gala-phytophthora-bp-2_000',
                 'csv/phytophthora/gala-phytophthora-bp-6-2_000',
             ],
-            # 'phyto3': [
-            #     'csv/phytophthora/gala-phytophthora-bp-3_000',
-            #     'csv/phytophthora/gala-phytophthora-bp-7-3_000',
-            # ],
-            # 'phyto4': [
-            #     'csv/phytophthora/gala-phytophthora-bp-4_000',
-            #     'csv/phytophthora/gala-phytophthora-bp-8-4_000',
-            # ],
+            'phyto3': [
+                'csv/phytophthora/gala-phytophthora-bp-3_000',
+                'csv/phytophthora/gala-phytophthora-bp-7-3_000',
+            ],
+            'phyto4': [
+                'csv/phytophthora/gala-phytophthora-bp-4_000',
+                'csv/phytophthora/gala-phytophthora-bp-8-4_000',
+            ],
 
         },
         max_files_in_dir=10
