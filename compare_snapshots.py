@@ -102,7 +102,11 @@ class BandData:
 
     def __init__(self, left_wl_bound: int, right_wl_bound: int, all_data: np.ndarray):
         # separate coordinates and snapshot data
-        self.coordinates = all_data[1:, :2]
+        self.coordinates = all_data[1:, :2].copy()
+
+        # coordinates matching with image format
+        self.coordinates[:, 0] = all_data[1:, 1]
+        self.coordinates[:, 1] = -all_data[1:, 0]
 
         snapshot = all_data[:, 2:]
 
