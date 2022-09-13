@@ -355,6 +355,25 @@ def draw_detailed_comparison(
                         hoverongaps=False
                     )
                 )
+                if wl_id == 0:
+                    fig.add_annotation(
+                        x=(norm_x + row_i * max_snap_width).max() / 2,
+                        y=(norm_y + col_i * max_snap_height).max(),
+                        xref="x",
+                        yref="y",
+                        text=snapshot.name,
+                        font=dict(
+                            family="Courier New, monospace",
+                            size=16,
+                            color="#ffffff"
+                        ),
+                        align="center",
+                        bordercolor="#c7c7c7",
+                        borderwidth=2,
+                        borderpad=4,
+                        bgcolor="#ff7f0e",
+                        opacity=0.8
+                    )
 
     for col_i, class_snapshots in enumerate(all_classes):
         for row_i, snapshot in enumerate(class_snapshots):
@@ -451,14 +470,14 @@ if __name__ == '__main__':
                 'csv/phytophthora/gala-phytophthora-bp-2_000',
                 'csv/phytophthora/gala-phytophthora-bp-6-2_000',
             ],
-            'phyto3': [
-                'csv/phytophthora/gala-phytophthora-bp-3_000',
-                'csv/phytophthora/gala-phytophthora-bp-7-3_000',
-            ],
-            'phyto4': [
-                'csv/phytophthora/gala-phytophthora-bp-4_000',
-                'csv/phytophthora/gala-phytophthora-bp-8-4_000',
-            ],
+            # 'phyto3': [
+            #     'csv/phytophthora/gala-phytophthora-bp-3_000',
+            #     'csv/phytophthora/gala-phytophthora-bp-7-3_000',
+            # ],
+            # 'phyto4': [
+            #     'csv/phytophthora/gala-phytophthora-bp-4_000',
+            #     'csv/phytophthora/gala-phytophthora-bp-8-4_000',
+            # ],
 
         },
         max_files_in_dir=10
