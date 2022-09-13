@@ -56,7 +56,7 @@ RES_DIR.mkdir(exist_ok=True)
 
 
 class BandData:
-    def get_left_confidence_interval_pixels(self, band_data: np.ndarray, left_part: float) -> list:
+    def get_left_confidence_interval_pixels(self, band_data: np.ndarray, left_part: float) -> np.ndarray:
         assert 0 <= left_part <= 1
         all_mean_agg_in_px_by_ch = band_data.mean(axis=1)
         df = pd.DataFrame({
@@ -66,7 +66,19 @@ class BandData:
 
         return band_data[list(df['pix_id'])]
 
-    def __init__(self, left_wl_bound: int, right_wl_bound: int, snapshot: np.ndarray):
+    def get_pixels_by_ch_id(self, ch_id: int) -> np.ndarray:
+        return self.band_data[:, ch_id]
+
+    def get_pixels_by_wl(self, target_wl: int) -> np.ndarray:
+        ch_id = [i for i, wl in enumerate(self.wave_lengths) if wl == target_wl][0]
+        return self.get_pixels_by_ch_id(ch_id=ch_id)
+
+    def __init__(self, left_wl_bound: int, right_wl_bound: int, all_data: np.ndarray):
+        # separate coordinates and snapshot data
+        self.coordinates = all_data[1:, :2]
+
+        snapshot = all_data[:, 2:]
+
         wl_ids = [wl_id for wl_id, wl in enumerate(snapshot[0]) if left_wl_bound < wl < right_wl_bound]
         assert len(wl_ids) > 0
         self.wave_lengths = snapshot[0, wl_ids]
@@ -74,7 +86,7 @@ class BandData:
         # filter wavelengths
         band_data = snapshot[1:, wl_ids]
         # filter pixels
-        band_data = self.get_left_confidence_interval_pixels(band_data, left_part=0.05)
+        # band_data = self.get_left_confidence_interval_pixels(band_data, left_part=0.05)
 
         self.mean_agg_in_ch_by_px = band_data.mean(axis=0)
         self.left_dev_agg_in_ch_by_px = band_data.mean(axis=0) + calculate_dev_in_channels(band_data, mode='left')
@@ -84,23 +96,23 @@ class BandData:
         self.left_dev_agg_in_px_by_ch = band_data.mean(axis=1) + calculate_dev_in_pixels(band_data, mode='left')
         self.right_dev_agg_in_px_by_ch = band_data.mean(axis=1) + calculate_dev_in_pixels(band_data, mode='right')
 
+        self.band_data = band_data
+
 
 BANDS_DICT = {
     # 'blue': (440, 485), 'cyan': (485, 500), 'green': (500, 565), 'yellow': (565, 590),
     # 'orange': (590, 625), 'red': (625, 780),
     # 'visible': (440, 780),
-    'infrared': (780, 1000)
+    # 'infrared': (780, 1000),
+    'all': (400, 1000)
 }
 
 
 class SnapshotMeta:
-    def __init__(self, name: str, snapshot: np.ndarray):
-        # crop x,y
-        snapshot = snapshot[:, 2:]
-
+    def __init__(self, name: str, all_data: np.ndarray):
         self.name = name
-        self.bands = {
-            band_name: BandData(left_wl_bound=band_range[0], right_wl_bound=band_range[1], snapshot=snapshot)
+        self.bands: Dict[str, BandData] = {
+            band_name: BandData(left_wl_bound=band_range[0], right_wl_bound=band_range[1], all_data=all_data)
             for band_name, band_range in BANDS_DICT.items()
         }
 
@@ -112,17 +124,20 @@ def parse_classes(classes_dict: Dict[str, List[str]], max_files_in_dir: int) -> 
         for dir_path in class_dirs:
             files = list(os.listdir(dir_path))[:max_files_in_dir]
             for file_id, file in enumerate(files):
-                snapshot = genfromtxt(
+                all_data = genfromtxt(
                     f'{dir_path}/{file}',
                     delimiter=','
                 )
                 features.append(
-                    SnapshotMeta(name=file, snapshot=snapshot)
+                    SnapshotMeta(name=file, all_data=all_data)
                 )
     return classes_features
 
 
-def draw_snapshots_as_reflectance(classes_dict: Dict[str, List[SnapshotMeta]], res_path: str, mode='ch'):
+def draw_snapshots_as_reflectance(classes_dict: Dict[str, List[SnapshotMeta]], res_path: str,
+                                  x_range: Optional[tuple] = None, y_range: Optional[tuple] = None, mode='ch'):
+    for coord_range in (x_range, y_range): assert len(coord_range) == 2
+
     max_snapshots_in_class = max([len(snapshots) for snapshots in classes_dict.values()])
     fig = make_subplots(
         rows=max_snapshots_in_class,
@@ -198,12 +213,8 @@ def draw_snapshots_as_reflectance(classes_dict: Dict[str, List[SnapshotMeta]], r
                     )
                 else:
                     raise Exception("Undefined mode")
-    if mode == 'ch':
-        fig.update_xaxes(range=[0, 900])
-        fig.update_yaxes(range=[0, 10_000])
-    elif mode == 'px':
-        fig.update_xaxes(range=[0, 1500])
-        fig.update_yaxes(range=[0, 15_000])
+    if x_range is not None: fig.update_xaxes(range=x_range)
+    if y_range is not None: fig.update_yaxes(range=y_range)
 
     fig.update_layout(height=max_snapshots_in_class * 400, width=2500,
                       title_text="classes reflectance comparison")
@@ -307,12 +318,68 @@ def draw_snapshots_as_features(
     fig.write_html(res_path)
 
 
+def draw_detailed_comparison(health_snap: SnapshotMeta, phyto_snap: SnapshotMeta, res_path: str):
+    fig = go.Figure()
+
+    for i, wave_lengths in enumerate(phyto_snap.bands['all'].wave_lengths):
+        norm_health_x = health_snap.bands['all'].coordinates[:, 0] - min(health_snap.bands['all'].coordinates[:, 0])
+        norm_health_y = health_snap.bands['all'].coordinates[:, 1] - min(health_snap.bands['all'].coordinates[:, 1])
+
+        fig.add_trace(
+            go.Heatmap(
+                visible=False,
+                z=health_snap.bands['all'].get_pixels_by_ch_id(ch_id=i),
+                x=norm_health_x,
+                y=norm_health_y,
+                hoverongaps=False
+            )
+        )
+        fig.add_trace(
+            go.Heatmap(
+                visible=False,
+                z=phyto_snap.bands['all'].get_pixels_by_ch_id(ch_id=i),
+                x=phyto_snap.bands['all'].coordinates[:, 0] - min(phyto_snap.bands['all'].coordinates[:, 0])
+                  + max(norm_health_x) + 5,
+                y=phyto_snap.bands['all'].coordinates[:, 1] - min(phyto_snap.bands['all'].coordinates[:, 1]),
+                hoverongaps=False
+            )
+        )
+
+    fig.data[0].visible = True
+    fig.data[1].visible = True
+
+    steps = []
+    for i, wl in enumerate(phyto_snap.bands['all'].wave_lengths):
+        step = dict(
+            method="update",
+            args=[{"visible": [False] * len(fig.data)},
+                  {"title": "Slider switched to wl: " + str(wl)}],  # layout attribute
+        )
+        step["args"][0]["visible"][i] = True  # Toggle i'th trace to "visible"
+        step["args"][0]["visible"][i + 1] = True  # Toggle i'th trace to "visible"
+
+        steps.append(step)
+
+    sliders = [dict(
+        active=0,
+        currentvalue={"prefix": "Frequency: "},
+        pad={"t": 50},
+        steps=steps
+    )]
+
+    fig.update_layout(
+        sliders=sliders
+    )
+
+    fig.write_html(res_path)
+
+
 def draw_files(classes_dict: Dict[str, List[str]], max_files_in_dir: int):
     classes_features_dict = parse_classes(classes_dict=classes_dict, max_files_in_dir=max_files_in_dir)
     draw_snapshots_as_reflectance(classes_features_dict, res_path=f'{RES_DIR}/comparison_by_agg_in_channels.html',
-                                  mode='ch')
+                                  x_range=(0, 900), y_range=(0, 10_000), mode='ch')
     draw_snapshots_as_reflectance(classes_features_dict, res_path=f'{RES_DIR}/comparison_by_agg_in_pixels.html',
-                                  mode='px')
+                                  x_range=(0, 200), y_range=(8_000, 10_000), mode='px')
 
     features_df = get_features_df(group_features=classes_features_dict)
     for band_name in BANDS_DICT.keys():
@@ -337,6 +404,12 @@ def draw_files(classes_dict: Dict[str, List[str]], max_files_in_dir: int):
             colors=['#4FD51D', '#FF9999', '#E70000', "#830000", "#180000"],
             res_path=f'{RES_DIR}/{band_name}_comparison_by_features_agg_in_pixels.html'
         )
+
+    draw_detailed_comparison(
+        health_snap=classes_features_dict['health'][0],
+        phyto_snap=classes_features_dict['phyto1'][0],
+        res_path=f'{RES_DIR}/classes_comparison_by_features.html'
+    )
 
 
 if __name__ == '__main__':
