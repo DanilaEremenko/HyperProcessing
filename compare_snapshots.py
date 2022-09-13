@@ -51,7 +51,7 @@ def calculate_dev_in_pixels(arr, mode='left') -> np.ndarray:
     return dev_arr
 
 
-RES_DIR = Path('comparison_left_confidence')
+RES_DIR = Path('comparison_all')
 RES_DIR.mkdir(exist_ok=True)
 
 
@@ -318,45 +318,58 @@ def draw_snapshots_as_features(
     fig.write_html(res_path)
 
 
-def draw_detailed_comparison(health_snap: SnapshotMeta, phyto_snap: SnapshotMeta, res_path: str):
+def draw_detailed_comparison(
+        all_classes: List[List[SnapshotMeta]],
+        classes_names: List[str],
+        res_path: str
+):
+    assert len(all_classes) == len(classes_names)
+
+    all_wl_lists = [len(snapshot.bands['all'].wave_lengths)
+                    for class_snapshots in all_classes for snapshot in class_snapshots]
+    assert all([wl_length == all_wl_lists[0] for wl_length in all_wl_lists])
+    wl_lengths = all_classes[0][0].bands['all'].wave_lengths
+
+    max_snap_width = max([snapshot.bands['all'].coordinates[:, 0].max() - snapshot.bands['all'].coordinates[:, 0].min()
+                          for class_snapshots in all_classes for snapshot in class_snapshots]) + 5
+
+    max_snap_height = max([snapshot.bands['all'].coordinates[:, 1].max() - snapshot.bands['all'].coordinates[:, 1].min()
+                           for class_snapshots in all_classes for snapshot in class_snapshots]) + 5
+
     fig = go.Figure()
 
-    for i, wave_lengths in enumerate(phyto_snap.bands['all'].wave_lengths):
-        norm_health_x = health_snap.bands['all'].coordinates[:, 0] - min(health_snap.bands['all'].coordinates[:, 0])
-        norm_health_y = health_snap.bands['all'].coordinates[:, 1] - min(health_snap.bands['all'].coordinates[:, 1])
+    for wl_id, _ in enumerate(wl_lengths):
+        for col_i, class_snapshots in enumerate(all_classes):
+            for row_i, snapshot in enumerate(class_snapshots):
+                norm_x = snapshot.bands['all'].coordinates[:, 0] - min(snapshot.bands['all'].coordinates[:, 0])
+                norm_y = snapshot.bands['all'].coordinates[:, 1] - min(snapshot.bands['all'].coordinates[:, 1])
+                fig.add_trace(
+                    go.Heatmap(
+                        visible=False,
+                        z=snapshot.bands['all'].get_pixels_by_ch_id(ch_id=wl_id),
+                        x=norm_x + row_i * max_snap_width,
+                        y=norm_y + col_i * max_snap_height,
+                        hoverongaps=False
+                    )
+                )
 
-        fig.add_trace(
-            go.Heatmap(
-                visible=False,
-                z=health_snap.bands['all'].get_pixels_by_ch_id(ch_id=i),
-                x=norm_health_x,
-                y=norm_health_y,
-                hoverongaps=False
-            )
-        )
-        fig.add_trace(
-            go.Heatmap(
-                visible=False,
-                z=phyto_snap.bands['all'].get_pixels_by_ch_id(ch_id=i),
-                x=phyto_snap.bands['all'].coordinates[:, 0] - min(phyto_snap.bands['all'].coordinates[:, 0])
-                  + max(norm_health_x) + 5,
-                y=phyto_snap.bands['all'].coordinates[:, 1] - min(phyto_snap.bands['all'].coordinates[:, 1]),
-                hoverongaps=False
-            )
-        )
-
-    fig.data[0].visible = True
-    fig.data[1].visible = True
+    for col_i, class_snapshots in enumerate(all_classes):
+        for row_i, snapshot in enumerate(class_snapshots):
+            fig.data[0 + col_i * len(class_snapshots) + row_i].visible = True
 
     steps = []
-    for i, wl in enumerate(phyto_snap.bands['all'].wave_lengths):
-        step = dict(
-            method="update",
-            args=[{"visible": [False] * len(fig.data)},
-                  {"title": "Slider switched to wl: " + str(wl)}],  # layout attribute
-        )
-        step["args"][0]["visible"][i] = True  # Toggle i'th trace to "visible"
-        step["args"][0]["visible"][i + 1] = True  # Toggle i'th trace to "visible"
+    for wl_id, wl in enumerate(wl_lengths):
+        step = {
+            "method": "update",
+            "args": [
+                {"visible": [False] * len(fig.data)},
+                {"title": "Slider switched to wl: " + str(wl)}
+            ],  # layout attribute
+        }
+        for col_i, class_snapshots in enumerate(all_classes):
+            for row_i, snapshot in enumerate(class_snapshots):
+                # Toggle i'th trace to "visible"
+                step["args"][0]["visible"][wl_id + col_i * len(class_snapshots) + row_i] = True
 
         steps.append(step)
 
@@ -406,8 +419,16 @@ def draw_files(classes_dict: Dict[str, List[str]], max_files_in_dir: int):
         )
 
     draw_detailed_comparison(
-        health_snap=classes_features_dict['health'][0],
-        phyto_snap=classes_features_dict['phyto1'][0],
+        all_classes=[
+            classes_features_dict['health'][0:2],
+            classes_features_dict['phyto1'][0:2],
+            classes_features_dict['phyto2'][0:2]
+        ],
+        classes_names=[
+            'health',
+            'phyto1',
+            'phyto2'
+        ],
         res_path=f'{RES_DIR}/classes_comparison_by_features.html'
     )
 
@@ -425,10 +446,10 @@ if __name__ == '__main__':
                 'csv/phytophthora/gala-phytophthora-bp-1_000',
                 'csv/phytophthora/gala-phytophthora-bp-5-1_000',
             ],
-            # 'phyto2': [
-            #     'csv/phytophthora/gala-phytophthora-bp-2_000',
-            #     'csv/phytophthora/gala-phytophthora-bp-6-2_000',
-            # ],
+            'phyto2': [
+                'csv/phytophthora/gala-phytophthora-bp-2_000',
+                'csv/phytophthora/gala-phytophthora-bp-6-2_000',
+            ],
             # 'phyto3': [
             #     'csv/phytophthora/gala-phytophthora-bp-3_000',
             #     'csv/phytophthora/gala-phytophthora-bp-7-3_000',
@@ -439,5 +460,5 @@ if __name__ == '__main__':
             # ],
 
         },
-        max_files_in_dir=30
+        max_files_in_dir=10
     )
