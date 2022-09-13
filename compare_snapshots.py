@@ -56,13 +56,23 @@ RES_DIR.mkdir(exist_ok=True)
 
 
 class BandData:
-    def get_left_confidence_interval_pixels(self, band_data: np.ndarray, left_part: float) -> np.ndarray:
-        assert 0 <= left_part <= 1
+    def get_filtered_interval_pixels(self, band_data: np.ndarray, mode: str, part: float) -> np.ndarray:
+        assert 0 <= part <= 1
         all_mean_agg_in_px_by_ch = band_data.mean(axis=1)
         df = pd.DataFrame({
             'pix_id': list(range(len(all_mean_agg_in_px_by_ch))),
             'pix_mean': all_mean_agg_in_px_by_ch
-        }).sort_values(['pix_mean']).iloc[:int(len(all_mean_agg_in_px_by_ch) * left_part)]
+        }).sort_values(['pix_mean'])
+        if mode == 'save_left':
+            df = df.iloc[:int(len(all_mean_agg_in_px_by_ch) * part)]
+        elif mode == 'save_right':
+            df = df.iloc[-int(len(all_mean_agg_in_px_by_ch) * part):]
+        elif mode == 'crop_left':
+            df = df.iloc[:int(len(all_mean_agg_in_px_by_ch) * (1 - part))]
+        elif mode == 'crop_right':
+            df = df.iloc[-int(len(all_mean_agg_in_px_by_ch) * (1 - part)):]
+        else:
+            raise Exception(f"Unexpected mode = {mode}")
 
         return band_data[list(df['pix_id'])]
 
@@ -89,7 +99,7 @@ class BandData:
         # filter wavelengths
         band_data = snapshot[1:, wl_ids]
         # filter pixels
-        # band_data = self.get_left_confidence_interval_pixels(band_data, left_part=0.05)
+        # band_data = self.get_filtered_interval_pixels(band_data, mode='crop_right', part=0.1)
 
         self.mean_agg_in_ch_by_px = band_data.mean(axis=0)
         self.left_dev_agg_in_ch_by_px = band_data.mean(axis=0) + calculate_dev_in_channels(band_data, mode='left')
