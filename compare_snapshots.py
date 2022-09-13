@@ -397,6 +397,13 @@ def draw_detailed_comparison(
 
 def draw_files(classes_dict: Dict[str, List[str]], max_files_in_dir: int):
     classes_features_dict = parse_classes(classes_dict=classes_dict, max_files_in_dir=max_files_in_dir)
+
+    draw_detailed_comparison(
+        all_classes=[classes_features_dict[key][0:2] for key in classes_features_dict.keys()],
+        classes_names=[key for key in classes_features_dict.keys()],
+        res_path=f'{RES_DIR}/classes_comparison_by_features.html'
+    )
+
     draw_snapshots_as_reflectance(classes_features_dict, res_path=f'{RES_DIR}/comparison_by_agg_in_channels.html',
                                   x_range=(0, 900), y_range=(0, 10_000), mode='ch')
     draw_snapshots_as_reflectance(classes_features_dict, res_path=f'{RES_DIR}/comparison_by_agg_in_pixels.html',
@@ -424,12 +431,6 @@ def draw_files(classes_dict: Dict[str, List[str]], max_files_in_dir: int):
             title="comparison of snapshots aggregated in pixels",
             colors=['#4FD51D', '#FF9999', '#E70000', "#830000", "#180000"],
             res_path=f'{RES_DIR}/{band_name}_comparison_by_features_agg_in_pixels.html'
-        )
-
-        draw_detailed_comparison(
-            all_classes=[classes_features_dict[key][0:2] for key in classes_features_dict.keys()],
-            classes_names=[key for key in classes_features_dict.keys()],
-            res_path=f'{RES_DIR}/classes_comparison_by_features.html'
         )
 
 
