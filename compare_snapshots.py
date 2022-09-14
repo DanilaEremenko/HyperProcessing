@@ -56,13 +56,20 @@ RES_DIR.mkdir(exist_ok=True)
 
 
 class BandData:
-    def get_filtered_interval_pixels(self, band_data: np.ndarray, mode: str, part: float) -> np.ndarray:
+    def get_filtered_interval_pixels(
+            self,
+            band_data: np.ndarray,
+            mode: str,
+            part: float,
+            fill_out_with_zeros=False
+    ) -> np.ndarray:
         assert 0 <= part <= 1
         all_mean_agg_in_px_by_ch = band_data.mean(axis=1)
         df = pd.DataFrame({
             'pix_id': list(range(len(all_mean_agg_in_px_by_ch))),
             'pix_mean': all_mean_agg_in_px_by_ch
         }).sort_values(['pix_mean'])
+
         if mode == 'save_left':
             df = df.iloc[:int(len(all_mean_agg_in_px_by_ch) * part)]
         elif mode == 'save_right':
@@ -74,31 +81,40 @@ class BandData:
         else:
             raise Exception(f"Unexpected mode = {mode}")
 
-        return band_data[list(df['pix_id'])]
+        ok_ids = list(df['pix_id'])
+        if fill_out_with_zeros:
+            not_ok_ids = [i for i in range(band_data.shape[0]) if i not in ok_ids]
+            zeros_filled_band_data = band_data.copy()
+            zeros_filled_band_data[not_ok_ids] = 0
+            return zeros_filled_band_data
+        else:
+            return band_data[ok_ids].copy()
 
     def get_band_data_in_ch_id(self, ch_id: int) -> np.ndarray:
         return self.band_data[:, ch_id]
 
-    def get_band_data_in_wl(self, target_wl: int) -> np.ndarray:
+    def get_band_data_in_wl(self, target_wl: float) -> np.ndarray:
         ch_id = [i for i, wl in enumerate(self.wave_lengths) if wl == target_wl][0]
         return self.get_band_data_in_ch_id(ch_id=ch_id)
 
     def get_band_corr_df(self) -> pd.DataFrame:
         return pd.DataFrame({str(wl): self.band_data[:, i] for i, wl in enumerate(self.wave_lengths)}).corr()
 
-    def get_too_low_pxs_sum(self) -> float:
+    def get_too_low_pxs(self, wl=718.) -> np.ndarray:
         return self.get_filtered_interval_pixels(
-            band_data=np.expand_dims(self.get_band_data_in_wl(target_wl=718), 1),
+            band_data=np.expand_dims(self.get_band_data_in_wl(target_wl=wl), 1),
             mode='save_left',
-            part=0.05
-        ).sum()
+            part=0.1,
+            fill_out_with_zeros=True
+        )
 
-    def get_too_high_pxs_sum(self) -> float:
+    def get_too_high_pxs(self, wl=718.) -> np.ndarray:
         return self.get_filtered_interval_pixels(
-            band_data=np.expand_dims(self.get_band_data_in_wl(target_wl=718), 1),
+            band_data=np.expand_dims(self.get_band_data_in_wl(target_wl=wl), 1),
             mode='save_right',
-            part=0.01
-        ).sum()
+            part=0.1,
+            fill_out_with_zeros=True
+        )
 
     def __init__(self, left_wl_bound: int, right_wl_bound: int, all_data: np.ndarray):
         # separate coordinates and snapshot data
@@ -293,9 +309,9 @@ def get_features_df(group_features: Dict[str, List[SnapshotMeta]]) -> pd.DataFra
                     band_value.right_dev_agg_in_px_by_ch.sum() - band_value.left_dev_agg_in_px_by_ch.sum()
                 )
 
-                features_dict[f'{band_key}_too_low_pxs_sum'].append(band_value.get_too_low_pxs_sum())
+                features_dict[f'{band_key}_too_low_pxs_sum'].append(band_value.get_too_low_pxs().mean())
 
-                features_dict[f'{band_key}_too_high_pxs_sum'].append(band_value.get_too_high_pxs_sum())
+                features_dict[f'{band_key}_too_high_pxs_sum'].append(band_value.get_too_high_pxs().mean())
 
             features_dict['class'].append(group_key)
 
@@ -370,7 +386,7 @@ def draw_detailed_comparison(
 
     fig = go.Figure()
 
-    for wl_id, _ in enumerate(wl_lengths):
+    for wl_id, wl in enumerate(wl_lengths):
         for col_i, class_snapshots in enumerate(all_classes[::-1]):
             for row_i, snapshot in enumerate(class_snapshots):
                 norm_x = snapshot.bands['all'].coordinates[:, 0] - min(snapshot.bands['all'].coordinates[:, 0])
@@ -378,6 +394,7 @@ def draw_detailed_comparison(
                 fig.add_trace(
                     go.Heatmap(
                         visible=False,
+                        # z=snapshot.bands['all'].get_too_low_pxs(wl=wl)[:,0],
                         z=snapshot.bands['all'].get_band_data_in_ch_id(ch_id=wl_id),
                         x=norm_x + row_i * max_snap_width,
                         y=norm_y + col_i * max_snap_height,
@@ -390,7 +407,9 @@ def draw_detailed_comparison(
                         y=(norm_y + col_i * max_snap_height).max(),
                         xref="x",
                         yref="y",
-                        text=snapshot.name,
+                        text=f"{snapshot.name}/"
+                             f"[low_sum={snapshot.bands['all'].get_too_low_pxs().mean().round(2)}, "
+                             f"high_sum={snapshot.bands['all'].get_too_high_pxs().mean().round(2)}]",
                         font=dict(
                             family="Courier New, monospace",
                             size=16,
