@@ -68,9 +68,9 @@ class BandData:
         elif mode == 'save_right':
             df = df.iloc[-int(len(all_mean_agg_in_px_by_ch) * part):]
         elif mode == 'crop_left':
-            df = df.iloc[:int(len(all_mean_agg_in_px_by_ch) * (1 - part))]
-        elif mode == 'crop_right':
             df = df.iloc[-int(len(all_mean_agg_in_px_by_ch) * (1 - part)):]
+        elif mode == 'crop_right':
+            df = df.iloc[:int(len(all_mean_agg_in_px_by_ch) * (1 - part))]
         else:
             raise Exception(f"Unexpected mode = {mode}")
 
