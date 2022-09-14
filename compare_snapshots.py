@@ -465,11 +465,15 @@ def draw_detailed_comparison(
 def draw_files(classes_dict: Dict[str, List[str]], max_files_in_dir: int):
     classes_features_dict = parse_classes(classes_dict=classes_dict, max_files_in_dir=max_files_in_dir)
 
-    draw_detailed_comparison(
-        all_classes=[classes_features_dict[key][0:2] for key in classes_features_dict.keys()],
-        classes_names=[key for key in classes_features_dict.keys()],
-        res_path=f'{RES_DIR}/classes_comparison_by_features.html'
-    )
+    for i in range(2):
+        step = 2
+        i_st = i * step
+        i_fin = i * step + step
+        draw_detailed_comparison(
+            all_classes=[classes_features_dict[key][i_st:i_fin] for key in classes_features_dict.keys()],
+            classes_names=[key for key in classes_features_dict.keys()],
+            res_path=f'{RES_DIR}/classes_comparison_as_images[{i_st},{i_fin}].html'
+        )
 
     draw_snapshots_as_reflectance(classes_features_dict, res_path=f'{RES_DIR}/comparison_by_agg_in_channels.html',
                                   x_range=(0, 900), y_range=(0, 10_000), mode='ch')
@@ -486,7 +490,7 @@ def draw_files(classes_dict: Dict[str, List[str]], max_files_in_dir: int):
             y_title='Area between right deviation and left deviation aggregated by pixels in channels',
             title="comparison of snapshots aggregated in channels",
             colors=['#4FD51D', '#FF9999', '#E70000', "#830000", "#180000"],
-            res_path=f'{RES_DIR}/{band_name}_comparison_by_features_agg_in_channels.html'
+            res_path=f'{RES_DIR}/{band_name}_features_split_by_agg_in_channels.html'
         )
 
         draw_snapshots_as_features(
@@ -497,19 +501,19 @@ def draw_files(classes_dict: Dict[str, List[str]], max_files_in_dir: int):
             y_title='Area between right deviation and left deviation aggregated by channels in pixels',
             title="comparison of snapshots aggregated in pixels",
             colors=['#4FD51D', '#FF9999', '#E70000', "#830000", "#180000"],
-            res_path=f'{RES_DIR}/{band_name}_comparison_by_features_agg_in_pixels.html'
+            res_path=f'{RES_DIR}/{band_name}_features_split_by_agg_in_pixels.html'
         )
 
-    draw_snapshots_as_features(
-        features_df=features_df,
-        x_key=f'{band_name}_too_low_pxs_sum',
-        y_key=f'{band_name}_too_high_pxs_sum',
-        x_title='To low pxs sum 718 nm',
-        y_title='To high pxs sum 718 nm',
-        title="comparison of snapshots aggregated in pixels",
-        colors=['#4FD51D', '#FF9999', '#E70000', "#830000", "#180000"],
-        res_path=f'{RES_DIR}/{band_name}_comparison_by_718_nm.html'
-    )
+        draw_snapshots_as_features(
+            features_df=features_df,
+            x_key=f'{band_name}_too_low_pxs_sum',
+            y_key=f'{band_name}_too_high_pxs_sum',
+            x_title='To low pxs sum 718 nm',
+            y_title='To high pxs sum 718 nm',
+            title="comparison of snapshots aggregated in pixels",
+            colors=['#4FD51D', '#FF9999', '#E70000', "#830000", "#180000"],
+            res_path=f'{RES_DIR}/{band_name}_features_split_by_718_nm.html'
+        )
 
 
 if __name__ == '__main__':
