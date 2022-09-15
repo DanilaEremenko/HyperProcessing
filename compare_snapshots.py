@@ -9,13 +9,33 @@ from plotly import graph_objs as go
 from plotly.subplots import make_subplots
 import pandas as pd
 
+
+class BandRange:
+    def __init__(self):
+        pass
+
+
+class BandRangeBounds:
+    def __init__(self, left_bound: float, right_bound: float):
+        self.lb = left_bound
+        self.rb = right_bound
+
+
+class BandRangeSet:
+    def __init__(self, wls: List[float]):
+        self.wls = wls
+
+
 BANDS_DICT = {
-    'blue': (440, 485), 'cyan': (485, 500),
-    'green': (500, 565), 'yellow': (565, 590),
-    'orange': (590, 625), 'red': (625, 780),
-    'visible': (440, 780),
-    'infrared': (780, 1000),
-    'all': (400, 1000)
+    'blue_set': BandRangeSet(wls=[450]),
+
+    'blue': BandRangeBounds(440, 485), 'cyan': BandRangeBounds(485, 500),
+    'green': BandRangeBounds(500, 565), 'yellow': BandRangeBounds(565, 590),
+    'orange': BandRangeBounds(590, 625), 'red': BandRangeBounds(625, 780),
+    'visible': BandRangeBounds(440, 780),
+    'infrared': BandRangeBounds(780, 1000),
+
+    'all': BandRangeBounds(400, 1000),
 }
 
 
@@ -48,7 +68,11 @@ def calculate_dev_in_pixels(arr, mode='left') -> np.ndarray:
     residuals = arr - np.expand_dims(arr.mean(axis=1), axis=1)
     pixels_num = residuals.shape[0]
     dev_arr = np.zeros(pixels_num)
-    if mode == 'left':
+
+    if residuals.min() == residuals.max() == 0:
+        if residuals.shape[1] != 1:
+            raise Exception("All channels have same value for pixel")
+    elif mode == 'left':
         for pix_id in range(pixels_num):
             res_in_ch = residuals[pix_id]
             dev_arr[pix_id] = res_in_ch[res_in_ch < 0].mean()
@@ -56,6 +80,8 @@ def calculate_dev_in_pixels(arr, mode='left') -> np.ndarray:
         for pix_id in range(pixels_num):
             res_in_ch = residuals[pix_id]
             dev_arr[pix_id] = res_in_ch[res_in_ch > 0].mean()
+    else:
+        raise Exception(f"Undefined mode = {mode}")
 
     return dev_arr
 
@@ -127,7 +153,7 @@ class BandData:
             fill_out_with_zeros=True
         )
 
-    def __init__(self, left_wl_bound: int, right_wl_bound: int, all_data: np.ndarray):
+    def __init__(self, band_range: BandRange, all_data: np.ndarray):
         # separate coordinates and snapshot data
         self.coordinates = all_data[1:, :2].copy()
 
@@ -137,7 +163,13 @@ class BandData:
 
         snapshot = all_data[:, 2:]
 
-        wl_ids = [wl_id for wl_id, wl in enumerate(snapshot[0]) if left_wl_bound < wl < right_wl_bound]
+        if isinstance(band_range, BandRangeBounds):
+            wl_ids = [wl_id for wl_id, wl in enumerate(snapshot[0]) if band_range.lb < wl < band_range.rb]
+        elif isinstance(band_range, BandRangeSet):
+            wl_ids = [wl_id for wl_id, wl in enumerate(snapshot[0]) if wl in band_range.wls]
+        else:
+            raise Exception(f"Undefined class {band_range.__class__.__name__} passed")
+
         assert len(wl_ids) > 0
         self.wave_lengths = snapshot[0, wl_ids]
 
@@ -161,7 +193,7 @@ class SnapshotMeta:
     def __init__(self, name: str, all_data: np.ndarray):
         self.name = name
         self.bands: Dict[str, BandData] = {
-            band_name: BandData(left_wl_bound=band_range[0], right_wl_bound=band_range[1], all_data=all_data)
+            band_name: BandData(band_range=band_range, all_data=all_data)
             for band_name, band_range in BANDS_DICT.items()
         }
 
