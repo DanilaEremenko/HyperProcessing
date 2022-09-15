@@ -296,17 +296,17 @@ def get_features_df(group_features: Dict[str, List[SnapshotMeta]]) -> pd.DataFra
                 band_value: BandData = band_value
 
                 features_dict[f'{band_key}_mean_agg_in_channels_sum'].append(
-                    band_value.mean_agg_in_ch_by_px.sum()
+                    band_value.mean_agg_in_ch_by_px.mean()
                 )
                 features_dict[f'{band_key}_dev_agg_in_channels_sum'].append(
-                    band_value.right_dev_in_ch_by_px.sum() - band_value.left_dev_agg_in_ch_by_px.sum()
+                    band_value.right_dev_in_ch_by_px.mean() - band_value.left_dev_agg_in_ch_by_px.mean()
                 )
 
                 features_dict[f'{band_key}_mean_agg_in_pixels_sum'].append(
-                    band_value.mean_agg_in_px_by_ch.sum()
+                    band_value.mean_agg_in_px_by_ch.mean()
                 )
                 features_dict[f'{band_key}_dev_agg_in_pixels_sum'].append(
-                    band_value.right_dev_agg_in_px_by_ch.sum() - band_value.left_dev_agg_in_px_by_ch.sum()
+                    band_value.right_dev_agg_in_px_by_ch.mean() - band_value.left_dev_agg_in_px_by_ch.mean()
                 )
 
                 features_dict[f'{band_key}_too_low_pxs_sum'].append(band_value.get_too_low_pxs().mean())
