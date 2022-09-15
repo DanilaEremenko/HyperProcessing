@@ -9,6 +9,15 @@ from plotly import graph_objs as go
 from plotly.subplots import make_subplots
 import pandas as pd
 
+BANDS_DICT = {
+    'blue': (440, 485), 'cyan': (485, 500),
+    'green': (500, 565), 'yellow': (565, 590),
+    'orange': (590, 625), 'red': (625, 780),
+    'visible': (440, 780),
+    'infrared': (780, 1000),
+    'all': (400, 1000)
+}
+
 
 def draw_klebs_np(ax, snapshot: np.ndarray, title: str):
     # for i in range(0, len(snapshot) - 1, 10):
@@ -51,7 +60,7 @@ def calculate_dev_in_pixels(arr, mode='left') -> np.ndarray:
     return dev_arr
 
 
-RES_DIR = Path('comparison_all')
+RES_DIR = Path('comparison_filt')
 RES_DIR.mkdir(exist_ok=True)
 
 
@@ -100,17 +109,19 @@ class BandData:
     def get_band_corr_df(self) -> pd.DataFrame:
         return pd.DataFrame({str(wl): self.band_data[:, i] for i, wl in enumerate(self.wave_lengths)}).corr()
 
-    def get_too_low_pxs(self, wl=718.) -> np.ndarray:
+    def get_too_low_pxs(self) -> np.ndarray:
         return self.get_filtered_interval_pixels(
-            band_data=np.expand_dims(self.get_band_data_in_wl(target_wl=wl), 1),
+            # band_data=np.expand_dims(self.get_band_data_in_wl(target_wl=wl), 1),
+            band_data=self.band_data,
             mode='save_left',
             part=0.1,
             fill_out_with_zeros=True
         )
 
-    def get_too_high_pxs(self, wl=718.) -> np.ndarray:
+    def get_too_high_pxs(self) -> np.ndarray:
         return self.get_filtered_interval_pixels(
-            band_data=np.expand_dims(self.get_band_data_in_wl(target_wl=wl), 1),
+            # band_data=np.expand_dims(self.get_band_data_in_wl(target_wl=wl), 1),
+            band_data=self.band_data,
             mode='save_right',
             part=0.1,
             fill_out_with_zeros=True
@@ -144,15 +155,6 @@ class BandData:
         self.right_dev_agg_in_px_by_ch = band_data.mean(axis=1) + calculate_dev_in_pixels(band_data, mode='right')
 
         self.band_data = band_data
-
-
-BANDS_DICT = {
-    # 'blue': (440, 485), 'cyan': (485, 500), 'green': (500, 565), 'yellow': (565, 590),
-    # 'orange': (590, 625), 'red': (625, 780),
-    # 'visible': (440, 780),
-    # 'infrared': (780, 1000),
-    'all': (400, 1000)
-}
 
 
 class SnapshotMeta:
@@ -198,68 +200,67 @@ def draw_snapshots_as_reflectance(classes_dict: Dict[str, List[SnapshotMeta]], r
         for row_i, snapshot_meta in enumerate(group_list):
             # cast for ide
             snapshot_meta: SnapshotMeta = snapshot_meta
-            for band_i, (band_key, band_value) in enumerate(snapshot_meta.bands.items()):
-                band_value: BandData = band_value
-                if mode == 'ch':
-                    # vector of wavelengths representation
-                    fig.add_trace(
-                        go.Scatter(
-                            name=group_key,
-                            legendgroup=group_key,
-                            showlegend=row_i == 0 and band_i == 0,
-                            x=band_value.wave_lengths,
-                            y=band_value.mean_agg_in_ch_by_px,
-                            line=dict(color=f"rgba({','.join(color_tup)}, 100)")
-                        ),
-                        row=row_i + 1, col=col_i + 1
-                    )
-                    fig.add_trace(
-                        go.Scatter(
-                            name=group_key,
-                            legendgroup=group_key,
-                            showlegend=row_i == 0 and band_i == 0,
-                            # x, then x reversed
-                            x=[*band_value.wave_lengths, *band_value.wave_lengths[::-1]],
-                            mode="markers+lines",
-                            fill='toself',
-                            line=dict(color=f"rgba({','.join(color_tup)}, 0)"),
-                            # upper, then lower reversed
-                            y=[*band_value.left_dev_agg_in_ch_by_px,
-                               *band_value.right_dev_in_ch_by_px[::-1]]
-                        ),
-                        row=row_i + 1, col=col_i + 1
-                    )
-                elif mode == 'px':
-                    fig.add_trace(
-                        go.Scatter(
-                            name=group_key,
-                            legendgroup=group_key,
-                            showlegend=row_i == 0 and band_i == 0,
-                            x=list(range(len(band_value.mean_agg_in_px_by_ch))),
-                            y=band_value.mean_agg_in_px_by_ch,
-                            line=dict(color=f"rgba({','.join(color_tup)}, 100)")
-                        ),
-                        row=row_i + 1, col=col_i + 1
-                    )
-                    fig.add_trace(
-                        go.Scatter(
-                            name=group_key,
-                            legendgroup=group_key,
-                            showlegend=row_i == 0 and band_i == 0,
-                            # x, then x reversed
-                            x=[*list(range(len(band_value.mean_agg_in_px_by_ch))),
-                               *list(range(len(band_value.mean_agg_in_px_by_ch)))[::-1]],
-                            mode="markers+lines",
-                            fill='toself',
-                            line=dict(color=f"rgba({','.join(color_tup)}, 0)"),
-                            # upper, then lower reversed
-                            y=[*band_value.left_dev_agg_in_px_by_ch,
-                               *band_value.right_dev_agg_in_px_by_ch[::-1]]
-                        ),
-                        row=row_i + 1, col=col_i + 1
-                    )
-                else:
-                    raise Exception("Undefined mode")
+            band_value = snapshot_meta.bands['all']
+            if mode == 'ch':
+                # vector of wavelengths representation
+                fig.add_trace(
+                    go.Scatter(
+                        name=group_key,
+                        legendgroup=group_key,
+                        showlegend=row_i == 0,
+                        x=band_value.wave_lengths,
+                        y=band_value.mean_agg_in_ch_by_px,
+                        line=dict(color=f"rgba({','.join(color_tup)}, 100)")
+                    ),
+                    row=row_i + 1, col=col_i + 1
+                )
+                fig.add_trace(
+                    go.Scatter(
+                        name=group_key,
+                        legendgroup=group_key,
+                        showlegend=row_i == 0,
+                        # x, then x reversed
+                        x=[*band_value.wave_lengths, *band_value.wave_lengths[::-1]],
+                        mode="markers+lines",
+                        fill='toself',
+                        line=dict(color=f"rgba({','.join(color_tup)}, 0)"),
+                        # upper, then lower reversed
+                        y=[*band_value.left_dev_agg_in_ch_by_px,
+                           *band_value.right_dev_in_ch_by_px[::-1]]
+                    ),
+                    row=row_i + 1, col=col_i + 1
+                )
+            elif mode == 'px':
+                fig.add_trace(
+                    go.Scatter(
+                        name=group_key,
+                        legendgroup=group_key,
+                        showlegend=row_i == 0,
+                        x=list(range(len(band_value.mean_agg_in_px_by_ch))),
+                        y=band_value.mean_agg_in_px_by_ch,
+                        line=dict(color=f"rgba({','.join(color_tup)}, 100)")
+                    ),
+                    row=row_i + 1, col=col_i + 1
+                )
+                fig.add_trace(
+                    go.Scatter(
+                        name=group_key,
+                        legendgroup=group_key,
+                        showlegend=row_i == 0,
+                        # x, then x reversed
+                        x=[*list(range(len(band_value.mean_agg_in_px_by_ch))),
+                           *list(range(len(band_value.mean_agg_in_px_by_ch)))[::-1]],
+                        mode="markers+lines",
+                        fill='toself',
+                        line=dict(color=f"rgba({','.join(color_tup)}, 0)"),
+                        # upper, then lower reversed
+                        y=[*band_value.left_dev_agg_in_px_by_ch,
+                           *band_value.right_dev_agg_in_px_by_ch[::-1]]
+                    ),
+                    row=row_i + 1, col=col_i + 1
+                )
+            else:
+                raise Exception("Undefined mode")
     if x_range is not None: fig.update_xaxes(range=x_range)
     if y_range is not None: fig.update_yaxes(range=y_range)
 
@@ -327,43 +328,74 @@ def get_features_df(group_features: Dict[str, List[SnapshotMeta]]) -> pd.DataFra
     return features_df
 
 
-def draw_snapshots_as_features(
-        features_df: pd.DataFrame,
-        x_key: str, y_key: str,
-        x_title: str, y_title: str,
-        title: str,
-        colors: List[str],
-        res_path: str
-):
-    fig = go.Figure()
+class Feature:
+    def __init__(self, x_key: str, y_key: str, x_title: str, y_title: str, title: str):
+        self.x_key = x_key
+        self.y_key = y_key
+        self.x_title = x_title
+        self.y_title = y_title
+        self.title = title
 
-    for class_name, color in zip(list(features_df['class'].unique()), colors):
-        fig.add_trace(
-            go.Scatter(
-                name=class_name,
-                legendgroup=class_name,
-                mode='markers',
-                text=features_df[features_df['class'] == class_name]['name'],
-                x=features_df[features_df['class'] == class_name][x_key],
-                y=features_df[features_df['class'] == class_name][y_key],
-                marker=dict(
-                    color=color,
-                    size=20,
-                    line=dict(
-                        color='Black',
-                        width=2
-                    )
-                ),
-            )
+
+def draw_snapshots_in_features_space(features_df: pd.DataFrame):
+    colors = ['#4FD51D', '#FF9999', '#E70000', "#830000", "#180000"]
+
+    features_list: List[Feature] = [
+        # Feature(
+        #     x_key='mean_agg_in_channels_sum',
+        #     x_title='Mean value of channels',
+        #     y_key='dev_agg_in_channels_sum',
+        #     y_title='Mean deviation of channels',
+        #     title='comparison of snapshots aggregated in channels'
+        # ),
+        Feature(
+            x_key='mean_agg_in_pixels_sum',
+            x_title='Mean value of pixels',
+            y_key='dev_agg_in_pixels_sum',
+            y_title='Mean deviation of channels',
+            title='comparison of snapshots aggregated in pixels'
+        ),
+        Feature(
+            x_key='too_low_pxs_sum',
+            x_title='Mean value of lowest pixels',
+            y_key='too_high_pxs_sum',
+            y_title='Mean value of highest pixels',
+            title='comparison of snapshots aggregated in pixels by lowest and highets pixels'
         )
+    ]
 
-    fig.update_layout(
-        height=1280, width=1800,
-        xaxis_title=x_title,
-        yaxis_title=y_title,
-        title_text=title
-    )
-    fig.write_html(res_path)
+    for band_name in BANDS_DICT.keys():
+        titles_band = [f"{feature.title} in {band_name}" for feature in features_list]
+
+        fig = make_subplots(rows=1, cols=len(features_list), subplot_titles=titles_band)
+
+        for class_name, color in zip(list(features_df['class'].unique()), colors):
+            for i, feature in enumerate(features_list):
+                fig.add_trace(
+                    go.Scatter(
+                        name=class_name,
+                        legendgroup=class_name,
+                        showlegend=i == 0,
+                        mode='markers',
+                        text=features_df[features_df['class'] == class_name]['name'],
+                        x=features_df[features_df['class'] == class_name][f"{band_name}_{feature.x_key}"],
+                        y=features_df[features_df['class'] == class_name][f"{band_name}_{feature.y_key}"],
+                        marker=dict(
+                            color=color,
+                            size=20,
+                            line=dict(
+                                color='Black',
+                                width=2
+                            )
+                        ),
+                    ),
+                    row=1, col=i + 1
+                )
+                fig['layout'][f'xaxis{i + 1}']['title'] = f"{feature.x_title} in {band_name}"
+                fig['layout'][f'yaxis{i + 1}']['title'] = f"{feature.y_title} in {band_name}"
+
+        fig.update_layout(height=1200, width=1200 * len(features_list))
+        fig.write_html(f"{RES_DIR}/features_space_in_band={band_name}.html")
 
 
 def draw_detailed_comparison(
@@ -475,45 +507,15 @@ def draw_files(classes_dict: Dict[str, List[str]], max_files_in_dir: int):
             res_path=f'{RES_DIR}/classes_comparison_as_images[{i_st},{i_fin}].html'
         )
 
-    draw_snapshots_as_reflectance(classes_features_dict, res_path=f'{RES_DIR}/comparison_by_agg_in_channels.html',
+    draw_snapshots_as_reflectance(classes_features_dict,
+                                  res_path=f'{RES_DIR}/class_comparison_by_agg_in_channels.html',
                                   x_range=(0, 900), y_range=(0, 10_000), mode='ch')
-    draw_snapshots_as_reflectance(classes_features_dict, res_path=f'{RES_DIR}/comparison_by_agg_in_pixels.html',
+    draw_snapshots_as_reflectance(classes_features_dict,
+                                  res_path=f'{RES_DIR}/classes_comparison_by_agg_in_pixels.html',
                                   x_range=(0, 200), y_range=(8_000, 10_000), mode='px')
 
     features_df = get_features_df(group_features=classes_features_dict)
-    for band_name in BANDS_DICT.keys():
-        draw_snapshots_as_features(
-            features_df=features_df,
-            x_key=f'{band_name}_mean_agg_in_channels_sum',
-            y_key=f'{band_name}_dev_agg_in_channels_sum',
-            x_title=f'Area under mean curve aggregated by pixels in in channels in {band_name} range',
-            y_title='Area between right deviation and left deviation aggregated by pixels in channels',
-            title="comparison of snapshots aggregated in channels",
-            colors=['#4FD51D', '#FF9999', '#E70000', "#830000", "#180000"],
-            res_path=f'{RES_DIR}/{band_name}_features_split_by_agg_in_channels.html'
-        )
-
-        draw_snapshots_as_features(
-            features_df=features_df,
-            x_key=f'{band_name}_mean_agg_in_pixels_sum',
-            y_key=f'{band_name}_dev_agg_in_pixels_sum',
-            x_title=f'Area under mean curve aggregated by channels in pixels in {band_name} range',
-            y_title='Area between right deviation and left deviation aggregated by channels in pixels',
-            title="comparison of snapshots aggregated in pixels",
-            colors=['#4FD51D', '#FF9999', '#E70000', "#830000", "#180000"],
-            res_path=f'{RES_DIR}/{band_name}_features_split_by_agg_in_pixels.html'
-        )
-
-        draw_snapshots_as_features(
-            features_df=features_df,
-            x_key=f'{band_name}_too_low_pxs_sum',
-            y_key=f'{band_name}_too_high_pxs_sum',
-            x_title='To low pxs sum 718 nm',
-            y_title='To high pxs sum 718 nm',
-            title="comparison of snapshots aggregated in pixels",
-            colors=['#4FD51D', '#FF9999', '#E70000', "#830000", "#180000"],
-            res_path=f'{RES_DIR}/{band_name}_features_split_by_718_nm.html'
-        )
+    draw_snapshots_in_features_space(features_df=features_df)
 
 
 if __name__ == '__main__':
