@@ -15,19 +15,21 @@ class BandRange:
         pass
 
 
-class BandRangeBounds:
+class BandRangeBounds(BandRange):
     def __init__(self, left_bound: float, right_bound: float):
+        super().__init__()
         self.lb = left_bound
         self.rb = right_bound
 
 
-class BandRangeSet:
+class BandRangeSet(BandRange):
     def __init__(self, wls: List[float]):
+        super().__init__()
         self.wls = wls
 
 
 BANDS_DICT = {
-    'blue_set': BandRangeSet(wls=[450]),
+    # 'blue_set': BandRangeSet(wls=[450]),
 
     'blue': BandRangeBounds(440, 485), 'cyan': BandRangeBounds(485, 500),
     'green': BandRangeBounds(500, 565), 'yellow': BandRangeBounds(565, 590),
@@ -86,7 +88,7 @@ def calculate_dev_in_pixels(arr, mode='left') -> np.ndarray:
     return dev_arr
 
 
-RES_DIR = Path('comparison_filt')
+RES_DIR = Path('comparison_no_filt')
 RES_DIR.mkdir(exist_ok=True)
 
 
@@ -153,6 +155,14 @@ class BandData:
             fill_out_with_zeros=True
         )
 
+    @property
+    def mean_dev_in_px(self) -> np.float_:
+        return self.right_dev_in_pxs_by_ch.mean() - self.left_dev_in_pxs_by_ch.mean()
+
+    @property
+    def mean_dev_in_ch(self) -> np.float_:
+        return self.right_dev_in_chs_by_px.mean() - self.left_dev_in_chs_by_px.mean()
+
     def __init__(self, band_range: BandRange, all_data: np.ndarray):
         # separate coordinates and snapshot data
         self.coordinates = all_data[1:, :2].copy()
@@ -176,15 +186,15 @@ class BandData:
         # filter wavelengths
         band_data = snapshot[1:, wl_ids]
         # filter pixels
-        band_data = self.get_filtered_interval_pixels(band_data, mode='crop_right', part=0.1)
+        # band_data = self.get_filtered_interval_pixels(band_data, mode='crop_right', part=0.2)
 
-        self.mean_agg_in_ch_by_px = band_data.mean(axis=0)
-        self.left_dev_agg_in_ch_by_px = band_data.mean(axis=0) + calculate_dev_in_channels(band_data, mode='left')
-        self.right_dev_in_ch_by_px = band_data.mean(axis=0) + calculate_dev_in_channels(band_data, mode='right')
+        self.mean_in_ch_by_px = band_data.mean(axis=0)
+        self.left_dev_in_chs_by_px = band_data.mean(axis=0) + calculate_dev_in_channels(band_data, mode='left')
+        self.right_dev_in_chs_by_px = band_data.mean(axis=0) + calculate_dev_in_channels(band_data, mode='right')
 
-        self.mean_agg_in_px_by_ch = band_data.mean(axis=1)
-        self.left_dev_agg_in_px_by_ch = band_data.mean(axis=1) + calculate_dev_in_pixels(band_data, mode='left')
-        self.right_dev_agg_in_px_by_ch = band_data.mean(axis=1) + calculate_dev_in_pixels(band_data, mode='right')
+        self.mean_in_pxs_by_ch = band_data.mean(axis=1)
+        self.left_dev_in_pxs_by_ch = band_data.mean(axis=1) + calculate_dev_in_pixels(band_data, mode='left')
+        self.right_dev_in_pxs_by_ch = band_data.mean(axis=1) + calculate_dev_in_pixels(band_data, mode='right')
 
         self.band_data = band_data
 
@@ -222,7 +232,8 @@ def draw_snapshots_as_reflectance(classes_dict: Dict[str, List[SnapshotMeta]], r
     max_snapshots_in_class = max([len(snapshots) for snapshots in classes_dict.values()])
     fig = make_subplots(
         rows=max_snapshots_in_class,
-        cols=len(classes_dict)
+        cols=len(classes_dict),
+        subplot_titles=[snapshot.name for class_snapshots in classes_dict.values() for snapshot in class_snapshots]
     )
     colors = [('0', '180', '0'), ('255', '153', '153'), ('250', '0', '0'), ('113', '12', '12'), ('10', '10', '10')]
 
@@ -241,7 +252,7 @@ def draw_snapshots_as_reflectance(classes_dict: Dict[str, List[SnapshotMeta]], r
                         legendgroup=group_key,
                         showlegend=row_i == 0,
                         x=band_value.wave_lengths,
-                        y=band_value.mean_agg_in_ch_by_px,
+                        y=band_value.mean_in_ch_by_px,
                         line=dict(color=f"rgba({','.join(color_tup)}, 100)")
                     ),
                     row=row_i + 1, col=col_i + 1
@@ -257,8 +268,8 @@ def draw_snapshots_as_reflectance(classes_dict: Dict[str, List[SnapshotMeta]], r
                         fill='toself',
                         line=dict(color=f"rgba({','.join(color_tup)}, 0)"),
                         # upper, then lower reversed
-                        y=[*band_value.left_dev_agg_in_ch_by_px,
-                           *band_value.right_dev_in_ch_by_px[::-1]]
+                        y=[*band_value.left_dev_in_chs_by_px,
+                           *band_value.right_dev_in_chs_by_px[::-1]]
                     ),
                     row=row_i + 1, col=col_i + 1
                 )
@@ -268,8 +279,8 @@ def draw_snapshots_as_reflectance(classes_dict: Dict[str, List[SnapshotMeta]], r
                         name=group_key,
                         legendgroup=group_key,
                         showlegend=row_i == 0,
-                        x=list(range(len(band_value.mean_agg_in_px_by_ch))),
-                        y=band_value.mean_agg_in_px_by_ch,
+                        x=list(range(len(band_value.mean_in_pxs_by_ch))),
+                        y=band_value.mean_in_pxs_by_ch,
                         line=dict(color=f"rgba({','.join(color_tup)}, 100)")
                     ),
                     row=row_i + 1, col=col_i + 1
@@ -280,14 +291,14 @@ def draw_snapshots_as_reflectance(classes_dict: Dict[str, List[SnapshotMeta]], r
                         legendgroup=group_key,
                         showlegend=row_i == 0,
                         # x, then x reversed
-                        x=[*list(range(len(band_value.mean_agg_in_px_by_ch))),
-                           *list(range(len(band_value.mean_agg_in_px_by_ch)))[::-1]],
+                        x=[*list(range(len(band_value.mean_in_pxs_by_ch))),
+                           *list(range(len(band_value.mean_in_pxs_by_ch)))[::-1]],
                         mode="markers+lines",
                         fill='toself',
                         line=dict(color=f"rgba({','.join(color_tup)}, 0)"),
                         # upper, then lower reversed
-                        y=[*band_value.left_dev_agg_in_px_by_ch,
-                           *band_value.right_dev_agg_in_px_by_ch[::-1]]
+                        y=[*band_value.left_dev_in_pxs_by_ch,
+                           *band_value.right_dev_in_pxs_by_ch[::-1]]
                     ),
                     row=row_i + 1, col=col_i + 1
                 )
@@ -303,14 +314,14 @@ def draw_snapshots_as_reflectance(classes_dict: Dict[str, List[SnapshotMeta]], r
 
 def get_features_df(group_features: Dict[str, List[SnapshotMeta]]) -> pd.DataFrame:
     band_metrics = [
-        'mean_agg_in_channels_sum',
-        'dev_agg_in_channels_sum',
+        'mean_agg_in_channels',
+        'dev_agg_in_channels',
 
-        'mean_agg_in_pixels_sum',
-        'dev_agg_in_pixels_sum',
+        'mean_agg_in_pixels',
+        'dev_agg_in_pixels',
 
-        'too_low_pxs_sum',
-        'too_high_pxs_sum'
+        'too_low_pxs_mean',
+        'too_high_pxs_mean'
     ]
 
     features_dict = {
@@ -328,23 +339,14 @@ def get_features_df(group_features: Dict[str, List[SnapshotMeta]]) -> pd.DataFra
                 # cast for ide
                 band_value: BandData = band_value
 
-                features_dict[f'{band_key}_mean_agg_in_channels_sum'].append(
-                    band_value.mean_agg_in_ch_by_px.mean()
-                )
-                features_dict[f'{band_key}_dev_agg_in_channels_sum'].append(
-                    band_value.right_dev_in_ch_by_px.mean() - band_value.left_dev_agg_in_ch_by_px.mean()
-                )
+                features_dict[f'{band_key}_mean_agg_in_channels'].append(band_value.mean_in_ch_by_px.mean())
+                features_dict[f'{band_key}_dev_agg_in_channels'].append(band_value.mean_dev_in_ch)
 
-                features_dict[f'{band_key}_mean_agg_in_pixels_sum'].append(
-                    band_value.mean_agg_in_px_by_ch.mean()
-                )
-                features_dict[f'{band_key}_dev_agg_in_pixels_sum'].append(
-                    band_value.right_dev_agg_in_px_by_ch.mean() - band_value.left_dev_agg_in_px_by_ch.mean()
-                )
+                features_dict[f'{band_key}_mean_agg_in_pixels'].append(band_value.mean_in_pxs_by_ch.mean())
+                features_dict[f'{band_key}_dev_agg_in_pixels'].append(band_value.mean_dev_in_px)
 
-                features_dict[f'{band_key}_too_low_pxs_sum'].append(band_value.get_too_low_pxs().mean())
-
-                features_dict[f'{band_key}_too_high_pxs_sum'].append(band_value.get_too_high_pxs().mean())
+                features_dict[f'{band_key}_too_low_pxs_mean'].append(band_value.get_too_low_pxs().mean())
+                features_dict[f'{band_key}_too_high_pxs_mean'].append(band_value.get_too_high_pxs().mean())
 
             features_dict['class'].append(group_key)
 
@@ -374,23 +376,23 @@ def draw_snapshots_in_features_space(features_df: pd.DataFrame):
 
     features_list: List[Feature] = [
         # Feature(
-        #     x_key='mean_agg_in_channels_sum',
+        #     x_key='mean_agg_in_channels',
         #     x_title='Mean value of channels',
-        #     y_key='dev_agg_in_channels_sum',
+        #     y_key='dev_agg_in_channels',
         #     y_title='Mean deviation of channels',
         #     title='comparison of snapshots aggregated in channels'
         # ),
         Feature(
-            x_key='mean_agg_in_pixels_sum',
+            x_key='mean_agg_in_pixels',
             x_title='Mean value of pixels',
-            y_key='dev_agg_in_pixels_sum',
+            y_key='dev_agg_in_pixels',
             y_title='Mean deviation of channels',
             title='comparison of snapshots aggregated in pixels'
         ),
         Feature(
-            x_key='too_low_pxs_sum',
+            x_key='too_low_pxs_mean',
             x_title='Mean value of lowest pixels',
-            y_key='too_high_pxs_sum',
+            y_key='too_high_pxs_mean',
             y_title='Mean value of highest pixels',
             title='comparison of snapshots aggregated in pixels by lowest and highets pixels'
         )
@@ -427,25 +429,26 @@ def draw_snapshots_in_features_space(features_df: pd.DataFrame):
                 fig['layout'][f'yaxis{i + 1}']['title'] = f"{feature.y_title} in {band_name}"
 
         fig.update_layout(height=1200, width=1200 * len(features_list))
-        fig.write_html(f"{RES_DIR}/features_space_in_band={band_name}.html")
+        fig.write_html(f"{RES_DIR}/{band_name}/features_space_in_band={band_name}.html")
 
 
-def draw_detailed_comparison(
+def draw_hp_glasses(
         all_classes: List[List[SnapshotMeta]],
         classes_names: List[str],
+        bname: str,
         res_path: str
 ):
     assert len(all_classes) == len(classes_names)
 
-    all_wl_lists = [len(snapshot.bands['all'].wave_lengths)
+    all_wl_lists = [len(snapshot.bands[bname].wave_lengths)
                     for class_snapshots in all_classes for snapshot in class_snapshots]
     assert all([wl_length == all_wl_lists[0] for wl_length in all_wl_lists])
-    wl_lengths = all_classes[0][0].bands['all'].wave_lengths
+    wl_lengths = all_classes[0][0].bands[bname].wave_lengths
 
-    max_snap_width = max([snapshot.bands['all'].coordinates[:, 0].max() - snapshot.bands['all'].coordinates[:, 0].min()
+    max_snap_width = max([snapshot.bands[bname].coordinates[:, 0].max() - snapshot.bands[bname].coordinates[:, 0].min()
                           for class_snapshots in all_classes for snapshot in class_snapshots]) + 5
 
-    max_snap_height = max([snapshot.bands['all'].coordinates[:, 1].max() - snapshot.bands['all'].coordinates[:, 1].min()
+    max_snap_height = max([snapshot.bands[bname].coordinates[:, 1].max() - snapshot.bands[bname].coordinates[:, 1].min()
                            for class_snapshots in all_classes for snapshot in class_snapshots]) + 5
 
     fig = go.Figure()
@@ -453,13 +456,13 @@ def draw_detailed_comparison(
     for wl_id, wl in enumerate(wl_lengths):
         for col_i, class_snapshots in enumerate(all_classes[::-1]):
             for row_i, snapshot in enumerate(class_snapshots):
-                norm_x = snapshot.bands['all'].coordinates[:, 0] - min(snapshot.bands['all'].coordinates[:, 0])
-                norm_y = snapshot.bands['all'].coordinates[:, 1] - min(snapshot.bands['all'].coordinates[:, 1])
+                norm_x = snapshot.bands[bname].coordinates[:, 0] - min(snapshot.bands[bname].coordinates[:, 0])
+                norm_y = snapshot.bands[bname].coordinates[:, 1] - min(snapshot.bands[bname].coordinates[:, 1])
                 fig.add_trace(
                     go.Heatmap(
                         visible=False,
                         # z=snapshot.bands['all'].get_too_low_pxs(wl=wl)[:,0],
-                        z=snapshot.bands['all'].get_band_data_in_ch_id(ch_id=wl_id),
+                        z=snapshot.bands[bname].get_band_data_in_ch_id(ch_id=wl_id),
                         x=norm_x + row_i * max_snap_width,
                         y=norm_y + col_i * max_snap_height,
                         hoverongaps=False
@@ -472,8 +475,11 @@ def draw_detailed_comparison(
                         xref="x",
                         yref="y",
                         text=f"{snapshot.name}/"
-                             f"[low_sum={snapshot.bands['all'].get_too_low_pxs().mean().round(2)}, "
-                             f"high_sum={snapshot.bands['all'].get_too_high_pxs().mean().round(2)}]",
+                             f"[mean_pixel={snapshot.bands[bname].mean_in_pxs_by_ch.mean().round(2)}, "
+                             f"mean_dev={snapshot.bands[bname].mean_dev_in_px.round(2)}]"
+                        # f"[lowest_avg={snapshot.bands[bname].get_too_low_pxs().mean().round(2)}, "
+                        # f"highest_avg={snapshot.bands[bname].get_too_high_pxs().mean().round(2)}]"
+                        ,
                         font=dict(
                             family="Courier New, monospace",
                             size=16,
@@ -529,16 +535,23 @@ def draw_detailed_comparison(
 def draw_files(classes_dict: Dict[str, List[str]], max_files_in_dir: int):
     classes_features_dict = parse_classes(classes_dict=classes_dict, max_files_in_dir=max_files_in_dir)
 
-    for i in range(2):
-        step = 2
-        i_st = i * step
-        i_fin = i * step + step
-        draw_detailed_comparison(
-            all_classes=[classes_features_dict[key][i_st:i_fin] for key in classes_features_dict.keys()],
-            classes_names=[key for key in classes_features_dict.keys()],
-            res_path=f'{RES_DIR}/classes_comparison_as_images[{i_st},{i_fin}].html'
-        )
+    for band_name in BANDS_DICT.keys():
+        Path(f"{RES_DIR}/{band_name}").mkdir(exist_ok=True, parents=True)
 
+    # draw hyperspectral glasses for every band
+    for band_name in BANDS_DICT.keys():
+        for i in range(2):
+            step = 2
+            i_st = i * step
+            i_fin = i * step + step
+            draw_hp_glasses(
+                all_classes=[classes_features_dict[key][i_st:i_fin] for key in classes_features_dict.keys()],
+                classes_names=[key for key in classes_features_dict.keys()],
+                bname=band_name,
+                res_path=f'{RES_DIR}/{band_name}/hp_glasses_for_snapshots[{i_st},{i_fin}].html'
+            )
+
+    # draw channels and pixels curves
     draw_snapshots_as_reflectance(classes_features_dict,
                                   res_path=f'{RES_DIR}/class_comparison_by_agg_in_channels.html',
                                   x_range=(0, 900), y_range=(0, 10_000), mode='ch')
@@ -546,6 +559,7 @@ def draw_files(classes_dict: Dict[str, List[str]], max_files_in_dir: int):
                                   res_path=f'{RES_DIR}/classes_comparison_by_agg_in_pixels.html',
                                   x_range=(0, 200), y_range=(8_000, 10_000), mode='px')
 
+    # draw snapshots in features space
     features_df = get_features_df(group_features=classes_features_dict)
     draw_snapshots_in_features_space(features_df=features_df)
 
@@ -562,19 +576,21 @@ if __name__ == '__main__':
             'phyto1': [
                 'csv/phytophthora/gala-phytophthora-bp-1_000',
                 'csv/phytophthora/gala-phytophthora-bp-5-1_000',
+                # 'csv/phytophthora-ps-2_2-5_2/gala-phytophthora-2_2-5_2-1_000'
             ],
             'phyto2': [
                 'csv/phytophthora/gala-phytophthora-bp-2_000',
                 'csv/phytophthora/gala-phytophthora-bp-6-2_000',
+                # 'csv/phytophthora-ps-2_2-5_2/gala-phytophthora-2_2-5_2-2_000'
             ],
-            # 'phyto3': [
-            #     'csv/phytophthora/gala-phytophthora-bp-3_000',
-            #     'csv/phytophthora/gala-phytophthora-bp-7-3_000',
-            # ],
-            # 'phyto4': [
-            #     'csv/phytophthora/gala-phytophthora-bp-4_000',
-            #     'csv/phytophthora/gala-phytophthora-bp-8-4_000',
-            # ],
+            'phyto3': [
+                'csv/phytophthora/gala-phytophthora-bp-3_000',
+                'csv/phytophthora/gala-phytophthora-bp-7-3_000',
+            ],
+            'phyto4': [
+                'csv/phytophthora/gala-phytophthora-bp-4_000',
+                'csv/phytophthora/gala-phytophthora-bp-8-4_000',
+            ]
 
         },
         max_files_in_dir=30
