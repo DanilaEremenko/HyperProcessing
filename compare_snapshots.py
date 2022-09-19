@@ -8,6 +8,9 @@ import os
 from plotly import graph_objs as go
 from plotly.subplots import make_subplots
 import pandas as pd
+from sklearn import preprocessing
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import accuracy_score
 
 
 class BandRange:
@@ -28,12 +31,18 @@ class BandRangeSet(BandRange):
         self.wls = wls
 
 
+RES_DIR = Path('comparison_no_filt_try')
+RES_DIR.mkdir(exist_ok=True)
+
 BANDS_DICT = {
     # 'blue_set': BandRangeSet(wls=[450]),
 
-    'blue': BandRangeBounds(440, 485), 'cyan': BandRangeBounds(485, 500),
-    'green': BandRangeBounds(500, 565), 'yellow': BandRangeBounds(565, 590),
-    'orange': BandRangeBounds(590, 625), 'red': BandRangeBounds(625, 780),
+    'blue': BandRangeBounds(440, 485),
+    'cyan': BandRangeBounds(485, 500),
+    'green': BandRangeBounds(500, 565),
+    'yellow': BandRangeBounds(565, 590),
+    'orange': BandRangeBounds(590, 625),
+    'red': BandRangeBounds(625, 780),
     'visible': BandRangeBounds(440, 780),
     'infrared': BandRangeBounds(780, 1000),
 
@@ -88,10 +97,6 @@ def calculate_dev_in_pixels(arr, mode='left') -> np.ndarray:
     return dev_arr
 
 
-RES_DIR = Path('comparison_no_filt')
-RES_DIR.mkdir(exist_ok=True)
-
-
 class BandData:
     def get_filtered_interval_pixels(
             self,
@@ -115,6 +120,9 @@ class BandData:
             df = df.iloc[-int(len(all_mean_agg_in_px_by_ch) * (1 - part)):]
         elif mode == 'crop_right':
             df = df.iloc[:int(len(all_mean_agg_in_px_by_ch) * (1 - part))]
+        elif mode == 'crop_edges':
+            df = df.iloc[-int(len(all_mean_agg_in_px_by_ch) * (1 - part))
+                         :int(len(all_mean_agg_in_px_by_ch) * (1 - part))]
         else:
             raise Exception(f"Unexpected mode = {mode}")
 
@@ -151,6 +159,15 @@ class BandData:
             # band_data=np.expand_dims(self.get_band_data_in_wl(target_wl=wl), 1),
             band_data=self.band_data,
             mode='save_right',
+            part=0.1,
+            fill_out_with_zeros=True
+        )
+
+    def get_mid_pxs(self) -> np.ndarray:
+        return self.get_filtered_interval_pixels(
+            # band_data=np.expand_dims(self.get_band_data_in_wl(target_wl=wl), 1),
+            band_data=self.band_data,
+            mode='crop_edges',
             part=0.1,
             fill_out_with_zeros=True
         )
