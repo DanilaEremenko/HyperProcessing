@@ -344,11 +344,12 @@ def get_features_df(group_features: Dict[str, List[SnapshotMeta]]) -> pd.DataFra
     features_dict = {
         **{f"{band_name}_{band_metric}": [] for band_name in BANDS_DICT.keys() for band_metric in band_metrics},
         'class': [],
+        'class_generalized': [],
         'name': []
     }
 
-    for col_i, (group_key, group_list) in enumerate(group_features.items()):
-        for row_i, snapshot_meta in enumerate(group_list):
+    for col_i, (class_name, class_snapshots) in enumerate(group_features.items()):
+        for row_i, snapshot_meta in enumerate(class_snapshots):
             # cast for ide
             snapshot_meta: SnapshotMeta = snapshot_meta
 
@@ -365,7 +366,8 @@ def get_features_df(group_features: Dict[str, List[SnapshotMeta]]) -> pd.DataFra
                 features_dict[f'{band_key}_too_low_pxs_mean'].append(band_value.get_too_low_pxs().mean())
                 features_dict[f'{band_key}_too_high_pxs_mean'].append(band_value.get_too_high_pxs().mean())
 
-            features_dict['class'].append(group_key)
+            features_dict['class'].append(class_name)
+            features_dict['class_generalized'].append('phyto' if 'phyto' in class_name else 'health')
 
             features_dict['name'].append(snapshot_meta.name)
 
@@ -386,6 +388,29 @@ class Feature:
         self.x_title = x_title
         self.y_title = y_title
         self.title = title
+
+
+def clf_accuracy(features_df: pd.DataFrame, x_keys: List[str], y_key: str) -> Dict[str, float]:
+    x_train = features_df[x_keys]
+    y_train = features_df[y_key]
+
+    scaler = preprocessing.StandardScaler().fit(x_train)
+    x_normalized = scaler.transform(x_train)
+
+    clf = LogisticRegression(random_state=16)
+    clf.fit(x_normalized, y_train)
+
+    return {
+        'all': accuracy_score(y_train, clf.predict(x_normalized)).__round__(2),
+        **{
+            class_name:
+                accuracy_score(
+                    features_df[features_df[y_key] == class_name][y_key],
+                    clf.predict(scaler.transform(features_df[features_df[y_key] == class_name][x_keys]))
+                ).__round__(2)
+            for class_name in features_df[y_key].unique()
+        }
+    }
 
 
 def draw_snapshots_in_features_space(features_df: pd.DataFrame):
@@ -416,7 +441,9 @@ def draw_snapshots_in_features_space(features_df: pd.DataFrame):
     ]
 
     for band_name in BANDS_DICT.keys():
-        titles_band = [f"{feature.title} in {band_name}" for feature in features_list]
+        titles_band = [f"{feature.title} in {band_name} with logreg accuracy = " \
+                       f"{clf_accuracy(features_df=features_df, x_keys=[f'{band_name}_{feature.x_key}', f'{band_name}_{feature.y_key}'], y_key='class_generalized')['all']}"
+                       for feature in features_list]
 
         fig = make_subplots(rows=1, cols=len(features_list), subplot_titles=titles_band)
 
@@ -580,9 +607,11 @@ def draw_files(classes_dict: Dict[str, List[str]], max_files_in_dir: int):
     features_df = get_features_df(group_features=classes_features_dict)
     draw_snapshots_in_features_space(features_df=features_df)
 
+    return features_df
+
 
 if __name__ == '__main__':
-    draw_files(
+    features_df = draw_files(
         classes_dict={
             'health': [
                 'csv/control/gala-control-bp-1_000',
@@ -612,3 +641,23 @@ if __name__ == '__main__':
         },
         max_files_in_dir=30
     )
+
+    features_corr = features_df[[key for key in features_df.keys() if '_mean_agg_in_pixels' in key]].corr()
+    features_by_classes = {class_name: features_df[features_df['class'] == class_name] for class_name in
+                           features_df['class'].unique()}
+
+    features_corr_by_classes = {
+        class_name: class_df[[key for key in class_df.keys() if '_mean_agg_in_pixels' in key]].corr()
+        for class_name, class_df in features_by_classes.items()
+    }
+
+    # clf_accuracy(
+    #     features_df=features_df,
+    #     x_keys=[
+    #         'blue_mean_agg_in_pixels',
+    #         'blue_dev_agg_in_pixels',
+    #         'infrared_mean_agg_in_pixels',
+    #         'infrared_dev_agg_in_pixels'
+    #     ],
+    #     y_key='class_generalized'
+    # )
