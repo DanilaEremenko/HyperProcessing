@@ -10,7 +10,8 @@ from plotly.subplots import make_subplots
 import pandas as pd
 from sklearn import preprocessing
 from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import accuracy_score
+from sklearn.metrics import accuracy_score, confusion_matrix
+from sklearn.model_selection import cross_val_score, train_test_split
 
 
 class BandRange:
@@ -391,25 +392,22 @@ class Feature:
 
 
 def clf_accuracy(features_df: pd.DataFrame, x_keys: List[str], y_key: str) -> Dict[str, float]:
-    x_train = features_df[x_keys]
-    y_train = features_df[y_key]
+    x_all = features_df[x_keys]
+    y_all = features_df[y_key]
 
-    scaler = preprocessing.StandardScaler().fit(x_train)
-    x_normalized = scaler.transform(x_train)
+    scaler = preprocessing.StandardScaler().fit(x_all)
+
+    x_train, x_test, y_train, y_test = train_test_split(scaler.transform(x_all), y_all, test_size=0.33, random_state=42)
 
     clf = LogisticRegression(random_state=16)
-    clf.fit(x_normalized, y_train)
+
+    clf.fit(x_train, y_train)
 
     return {
-        'all': accuracy_score(y_train, clf.predict(x_normalized)).__round__(2),
-        **{
-            class_name:
-                accuracy_score(
-                    features_df[features_df[y_key] == class_name][y_key],
-                    clf.predict(scaler.transform(features_df[features_df[y_key] == class_name][x_keys]))
-                ).__round__(2)
-            for class_name in features_df[y_key].unique()
-        }
+        'all': accuracy_score(y_test, clf.predict(x_test)).__round__(2),
+        'train_confusion': confusion_matrix(clf.predict(x_train), y_train, labels=["health", "phyto"]),
+        'test_confusion': confusion_matrix(clf.predict(x_test), y_test, labels=["health", "phyto"]),
+        'cross_val': cross_val_score(clf, scaler.transform(x_all), y_all, cv=5)
     }
 
 
@@ -616,8 +614,8 @@ if __name__ == '__main__':
             'health': [
                 'csv/control/gala-control-bp-1_000',
                 'csv/control/gala-control-bp-2_000',
-                # 'csv/control/gala-control-bp-3_000',
-                # 'csv/control/gala-control-bp-4_000',
+                'csv/control/gala-control-bp-3_000',
+                'csv/control/gala-control-bp-4_000',
             ],
             'phyto1': [
                 'csv/phytophthora/gala-phytophthora-bp-1_000',
@@ -629,14 +627,14 @@ if __name__ == '__main__':
                 'csv/phytophthora/gala-phytophthora-bp-6-2_000',
                 # 'csv/phytophthora-ps-2_2-5_2/gala-phytophthora-2_2-5_2-2_000'
             ],
-            'phyto3': [
-                'csv/phytophthora/gala-phytophthora-bp-3_000',
-                'csv/phytophthora/gala-phytophthora-bp-7-3_000',
-            ],
-            'phyto4': [
-                'csv/phytophthora/gala-phytophthora-bp-4_000',
-                'csv/phytophthora/gala-phytophthora-bp-8-4_000',
-            ]
+            # 'phyto3': [
+            #     'csv/phytophthora/gala-phytophthora-bp-3_000',
+            #     'csv/phytophthora/gala-phytophthora-bp-7-3_000',
+            # ],
+            # 'phyto4': [
+            #     'csv/phytophthora/gala-phytophthora-bp-4_000',
+            #     'csv/phytophthora/gala-phytophthora-bp-8-4_000',
+            # ]
 
         },
         max_files_in_dir=30
