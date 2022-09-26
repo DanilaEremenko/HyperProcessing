@@ -8,10 +8,11 @@ import os
 from plotly import graph_objs as go
 from plotly.subplots import make_subplots
 import pandas as pd
-from sklearn import preprocessing
+from sklearn import preprocessing, tree
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score, confusion_matrix
 from sklearn.model_selection import cross_val_score, train_test_split
+from sklearn.tree import DecisionTreeClassifier
 
 
 class BandRange:
@@ -391,7 +392,16 @@ class Feature:
         self.title = title
 
 
-def clf_accuracy(features_df: pd.DataFrame, x_keys: List[str], y_key: str) -> Dict[str, float]:
+def clf_visualize(clf, x_keys: List[str], class_labels: List[str]):
+    if isinstance(clf, DecisionTreeClassifier):
+        fig = plt.figure(figsize=(25, 20))
+        tree.plot_tree(clf, feature_names=x_keys, class_names=class_labels, filled=True)
+        fig.savefig("decision_tree.png")
+    elif isinstance(clf, LogisticRegression):
+        pass  # TODO implement
+
+
+def clf_build(features_df: pd.DataFrame, x_keys: List[str], y_key: str, method_name='lr') -> Dict[str, float]:
     x_all = features_df[x_keys]
     y_all = features_df[y_key]
 
@@ -399,7 +409,12 @@ def clf_accuracy(features_df: pd.DataFrame, x_keys: List[str], y_key: str) -> Di
 
     x_train, x_test, y_train, y_test = train_test_split(scaler.transform(x_all), y_all, test_size=0.33, random_state=42)
 
-    clf = LogisticRegression(random_state=16)
+    if method_name == 'lr':
+        clf = LogisticRegression(random_state=16)
+    elif method_name == 'dt':
+        clf = DecisionTreeClassifier(random_state=16)
+    else:
+        raise Exception(f"Undefined clf method = {method_name}")
 
     clf.fit(x_train, y_train)
 
@@ -407,7 +422,8 @@ def clf_accuracy(features_df: pd.DataFrame, x_keys: List[str], y_key: str) -> Di
         'all': accuracy_score(y_test, clf.predict(x_test)).__round__(2),
         'train_confusion': confusion_matrix(clf.predict(x_train), y_train, labels=["health", "phyto"]),
         'test_confusion': confusion_matrix(clf.predict(x_test), y_test, labels=["health", "phyto"]),
-        'cross_val': cross_val_score(clf, scaler.transform(x_all), y_all, cv=5)
+        'cross_val': cross_val_score(clf, scaler.transform(x_all), y_all, cv=5),
+        'clf': clf
     }
 
 
@@ -440,7 +456,7 @@ def draw_snapshots_in_features_space(features_df: pd.DataFrame):
 
     for band_name in BANDS_DICT.keys():
         titles_band = [f"{feature.title} in {band_name} with logreg accuracy = " \
-                       f"{clf_accuracy(features_df=features_df, x_keys=[f'{band_name}_{feature.x_key}', f'{band_name}_{feature.y_key}'], y_key='class_generalized')['all']}"
+                       f"{clf_build(features_df=features_df, x_keys=[f'{band_name}_{feature.x_key}', f'{band_name}_{feature.y_key}'], y_key='class_generalized')['all']}"
                        for feature in features_list]
 
         fig = make_subplots(rows=1, cols=len(features_list), subplot_titles=titles_band)
@@ -649,7 +665,7 @@ if __name__ == '__main__':
         for class_name, class_df in features_by_classes.items()
     }
 
-    # clf_accuracy(
+    # clf_results = clf_build(
     #     features_df=features_df,
     #     x_keys=[
     #         'blue_mean_agg_in_pixels',
@@ -657,5 +673,17 @@ if __name__ == '__main__':
     #         'infrared_mean_agg_in_pixels',
     #         'infrared_dev_agg_in_pixels'
     #     ],
-    #     y_key='class_generalized'
+    #     y_key='class_generalized',
+    #     method_name='dt'
+    # )
+    #
+    # clf_visualize(
+    #     clf=clf_results['clf'],
+    #     x_keys=[
+    #         'blue_mean_agg_in_pixels',
+    #         'blue_dev_agg_in_pixels',
+    #         'infrared_mean_agg_in_pixels',
+    #         'infrared_dev_agg_in_pixels'
+    #     ],
+    #     class_labels=['health', 'phyto']
     # )
