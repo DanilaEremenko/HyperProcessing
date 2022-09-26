@@ -8,7 +8,7 @@ import os
 from plotly import graph_objs as go
 from plotly.subplots import make_subplots
 import pandas as pd
-from sklearn import preprocessing, tree
+from sklearn import preprocessing, tree, metrics
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score, confusion_matrix
 from sklearn.model_selection import cross_val_score, train_test_split
@@ -418,11 +418,25 @@ def clf_build(features_df: pd.DataFrame, x_keys: List[str], y_key: str, method_n
 
     clf.fit(x_train, y_train)
 
+    y_train_pred = clf.predict(x_train)
+    y_test_pred = clf.predict(x_test)
+
+    str_to_int = lambda arr: [1 if el == 'health' else 2 for el in arr]
+
     return {
         'all': accuracy_score(y_test, clf.predict(x_test)).__round__(2),
-        'train_confusion': confusion_matrix(clf.predict(x_train), y_train, labels=["health", "phyto"]),
-        'test_confusion': confusion_matrix(clf.predict(x_test), y_test, labels=["health", "phyto"]),
-        'cross_val': cross_val_score(clf, scaler.transform(x_all), y_all, cv=5),
+
+        'train_confusion': confusion_matrix(y_pred=y_train_pred, y_true=y_train, labels=["health", "phyto"]),
+        'train_auc': metrics.auc(
+            *metrics.roc_curve(y_score=str_to_int(y_train_pred), y_true=str_to_int(y_train), pos_label=2)[:2]
+        ).__round__(2),
+
+        'test_confusion': confusion_matrix(y_pred=y_test_pred, y_true=y_test, labels=["health", "phyto"]),
+        'test_auc': metrics.auc(
+            *metrics.roc_curve(y_score=str_to_int(y_test_pred), y_true=str_to_int(y_test), pos_label=2)[:2]
+        ).__round__(2),
+
+        'cross_val': cross_val_score(clf, scaler.transform(x_all), y_all, cv=5).round(2),
         'clf': clf
     }
 
@@ -674,7 +688,7 @@ if __name__ == '__main__':
     #         'infrared_dev_agg_in_pixels'
     #     ],
     #     y_key='class_generalized',
-    #     method_name='dt'
+    #     method_name='lr'
     # )
     #
     # clf_visualize(
