@@ -684,8 +684,12 @@ if __name__ == '__main__':
     #     x_keys=[
     #         'blue_mean_agg_in_pixels',
     #         'blue_dev_agg_in_pixels',
+    #         'blue_too_low_pxs_mean',
+    #         'blue_too_high_pxs_mean',
     #         'infrared_mean_agg_in_pixels',
-    #         'infrared_dev_agg_in_pixels'
+    #         'infrared_dev_agg_in_pixels',
+    #         'infrared_too_low_pxs_mean',
+    #         'infrared_too_high_pxs_mean'
     #     ],
     #     y_key='class_generalized',
     #     method_name='lr'
@@ -696,8 +700,12 @@ if __name__ == '__main__':
     #     x_keys=[
     #         'blue_mean_agg_in_pixels',
     #         'blue_dev_agg_in_pixels',
+    #         'blue_too_low_pxs_mean',
+    #         'blue_too_high_pxs_mean',
     #         'infrared_mean_agg_in_pixels',
-    #         'infrared_dev_agg_in_pixels'
+    #         'infrared_dev_agg_in_pixels',
+    #         'infrared_too_low_pxs_mean',
+    #         'infrared_too_high_pxs_mean'
     #     ],
     #     class_labels=['health', 'phyto']
     # )
