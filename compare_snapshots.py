@@ -12,6 +12,7 @@ from sklearn import preprocessing, tree, metrics
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score, confusion_matrix
 from sklearn.model_selection import cross_val_score, train_test_split
+from sklearn.svm import SVC
 from sklearn.tree import DecisionTreeClassifier
 
 
@@ -413,6 +414,8 @@ def clf_build(features_df: pd.DataFrame, x_keys: List[str], y_key: str, method_n
         clf = LogisticRegression(random_state=16)
     elif method_name == 'dt':
         clf = DecisionTreeClassifier(random_state=16)
+    elif method_name == 'svc':
+        clf = SVC(random_state=16)
     else:
         raise Exception(f"Undefined clf method = {method_name}")
 
