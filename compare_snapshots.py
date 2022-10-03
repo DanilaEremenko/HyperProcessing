@@ -10,7 +10,6 @@ from plotly.subplots import make_subplots
 import pandas as pd
 from sklearn import preprocessing, tree, metrics
 from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import accuracy_score, confusion_matrix
 from sklearn.model_selection import cross_val_score, train_test_split
 from sklearn.svm import SVC
 from sklearn.tree import DecisionTreeClassifier
@@ -427,14 +426,17 @@ def clf_build(features_df: pd.DataFrame, x_keys: List[str], y_key: str, method_n
     str_to_int = lambda arr: [1 if el == 'health' else 2 for el in arr]
 
     return {
-        'all': accuracy_score(y_test, clf.predict(x_test)).__round__(2),
+        'accuracy': metrics.accuracy_score(y_true=y_test, y_pred=clf.predict(x_test)).round(2),
 
-        'train_confusion': confusion_matrix(y_pred=y_train_pred, y_true=y_train, labels=["health", "phyto"]),
+        'f1_health': metrics.f1_score(y_true=y_test, y_pred=clf.predict(x_test), pos_label="health").round(2),
+        'f1_phyto': metrics.f1_score(y_true=y_test, y_pred=clf.predict(x_test), pos_label="phyto").round(2),
+
+        'train_confusion': metrics.confusion_matrix(y_pred=y_train_pred, y_true=y_train, labels=["health", "phyto"]),
         'train_auc': metrics.auc(
             *metrics.roc_curve(y_score=str_to_int(y_train_pred), y_true=str_to_int(y_train), pos_label=2)[:2]
         ).__round__(2),
 
-        'test_confusion': confusion_matrix(y_pred=y_test_pred, y_true=y_test, labels=["health", "phyto"]),
+        'test_confusion': metrics.confusion_matrix(y_pred=y_test_pred, y_true=y_test, labels=["health", "phyto"]),
         'test_auc': metrics.auc(
             *metrics.roc_curve(y_score=str_to_int(y_test_pred), y_true=str_to_int(y_test), pos_label=2)[:2]
         ).__round__(2),
@@ -472,8 +474,8 @@ def draw_snapshots_in_features_space(features_df: pd.DataFrame):
     ]
 
     for band_name in BANDS_DICT.keys():
-        titles_band = [f"{feature.title} in {band_name} with logreg accuracy = " \
-                       f"{clf_build(features_df=features_df, x_keys=[f'{band_name}_{feature.x_key}', f'{band_name}_{feature.y_key}'], y_key='class_generalized')['all']}"
+        titles_band = [f"{feature.title} in {band_name} with logreg f1(phyto) = " \
+                       f"{clf_build(features_df=features_df, x_keys=[f'{band_name}_{feature.x_key}', f'{band_name}_{feature.y_key}'], y_key='class_generalized')['f1_phyto']}"
                        for feature in features_list]
 
         fig = make_subplots(rows=1, cols=len(features_list), subplot_titles=titles_band)
