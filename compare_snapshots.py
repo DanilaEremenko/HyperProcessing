@@ -182,6 +182,24 @@ class BandData:
     def mean_dev_in_ch(self) -> np.float_:
         return self.right_dev_in_chs_by_px.mean() - self.left_dev_in_chs_by_px.mean()
 
+    @staticmethod
+    def get_padded_data(coordinates: np.ndarray, band_data: np.ndarray) -> np.ndarray:
+        coordinates_norm = coordinates.copy()
+        coordinates_norm[:, 0] -= coordinates_norm[:, 0].min()
+        coordinates_norm[:, 1] -= coordinates_norm[:, 1].min()
+
+        coordinates_norm = np.array(coordinates_norm, dtype='uint8')
+
+        y_size = coordinates_norm[:, 0].max()
+        x_size = coordinates_norm[:, 1].max()
+
+        padded_data = np.zeros(shape=(y_size, x_size, band_data.shape[-1]))
+
+        for (y, x), band_val in zip(coordinates_norm, band_data):
+            padded_data[y - 1, x - 1] = band_val
+
+        return padded_data
+
     def __init__(self, band_range: BandRange, all_data: np.ndarray):
         # separate coordinates and snapshot data
         self.coordinates = all_data[1:, :2].copy()
@@ -216,6 +234,11 @@ class BandData:
         self.right_dev_in_pxs_by_ch = band_data.mean(axis=1) + calculate_dev_in_pixels(band_data, mode='right')
 
         self.band_data = band_data
+
+        self.padded_data = self.get_padded_data(
+            coordinates=self.coordinates,
+            band_data=self.band_data
+        )
 
 
 class SnapshotMeta:
