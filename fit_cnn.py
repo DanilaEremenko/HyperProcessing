@@ -48,7 +48,7 @@ def get_data() -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
         max_files_in_dir=30
     )
     interm_list = [
-        (snapshot.name, class_name, snapshot.bands['infrared'].padded_data.swapaxes(0, 2).swapaxes(1, 2))
+        (snapshot.name, class_name, snapshot.bands['all'].padded_data.swapaxes(0, 2).swapaxes(1, 2))
         for class_name, class_snapshots in classes_features_dict.items()
         for snapshot in class_snapshots
     ]
@@ -61,14 +61,19 @@ def get_data() -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     max_y = max([tup[2].shape[1] for tup in filt_interm_list])
     max_x = max([tup[2].shape[2] for tup in filt_interm_list])
 
-    channels_num = 23
-    x_data = np.zeros(shape=(len(filt_interm_list), channels_num, max_y, max_x))
+    # channels_num = 23
+    all_channels_num = 106
+    x_data = np.zeros(shape=(len(filt_interm_list), all_channels_num, max_y, max_x))
     for i, tup in enumerate(filt_interm_list):
         curr_img = tup[2]
         x_data[i, :, :curr_img.shape[1], :curr_img.shape[2]] = curr_img
 
     # slice range
-    x_data = x_data[:, 10:13]
+    # x_data = x_data[:, 10:13]
+
+    # select channels (blue, green, infrared)
+    channels_list = [2, 15, 100]
+    x_data = x_data[:, channels_list]
 
     y_data = np.array([0 if 'health' in tup[1] else 1 for tup in filt_interm_list])
     y_data = np.expand_dims(y_data, 1)
