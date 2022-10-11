@@ -6,6 +6,7 @@ from numpy import genfromtxt
 import os
 import pandas as pd
 
+from clf import clf_build, clf_visualize
 from drawing import draw_hp_glasses, draw_snapshots_as_reflectance, draw_snapshots_in_features_space
 from snapshots_processing import SnapshotMeta, BandData, BANDS_DICT
 
@@ -91,15 +92,13 @@ def get_features_df(group_features: Dict[str, List[SnapshotMeta]]) -> pd.DataFra
     return features_df
 
 
-def draw_files(classes_dict: Dict[str, List[str]], max_files_in_dir: int):
-    classes_features_dict = parse_classes(classes_dict=classes_dict, max_files_in_dir=max_files_in_dir)
-
+def draw_files(classes_features_dict: Dict[str, List[SnapshotMeta]], features_df: pd.DataFrame):
     for band_name in BANDS_DICT.keys():
         Path(f"{RES_DIR}/{band_name}").mkdir(exist_ok=True, parents=True)
 
     # draw hyperspectral glasses for every band
     for band_name in BANDS_DICT.keys():
-        for i in range(2):
+        for i in range(4):
             step = 2
             i_st = i * step
             i_fin = i * step + step
@@ -119,14 +118,11 @@ def draw_files(classes_dict: Dict[str, List[str]], max_files_in_dir: int):
                                   x_range=(0, 200), y_range=(8_000, 10_000), mode='px')
 
     # draw snapshots in features space
-    features_df = get_features_df(group_features=classes_features_dict)
     draw_snapshots_in_features_space(features_df=features_df, res_dir=RES_DIR)
 
-    return features_df
 
-
-if __name__ == '__main__':
-    features_df = draw_files(
+def main() -> pd.DataFrame:
+    classes_features_dict = parse_classes(
         classes_dict={
             'health': [
                 'csv/control/gala-control-bp-1_000',
@@ -157,9 +153,20 @@ if __name__ == '__main__':
         max_files_in_dir=30
     )
 
+    features_df = get_features_df(group_features=classes_features_dict)
+
+    draw_files(classes_features_dict=classes_features_dict, features_df=features_df)
+
+    return features_df
+
+
+if __name__ == '__main__':
+    features_df = main()
+
     features_corr = features_df[[key for key in features_df.keys() if '_mean_agg_in_pixels' in key]].corr()
-    features_by_classes = {class_name: features_df[features_df['class'] == class_name] for class_name in
-                           features_df['class'].unique()}
+
+    features_by_classes = {class_name: features_df[features_df['class'] == class_name]
+                           for class_name in features_df['class'].unique()}
 
     features_corr_by_classes = {
         class_name: class_df[[key for key in class_df.keys() if '_mean_agg_in_pixels' in key]].corr()
