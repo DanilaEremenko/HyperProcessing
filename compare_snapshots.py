@@ -28,6 +28,7 @@ def parse_classes(classes_dict: Dict[str, List[str]], max_files_in_dir: int) -> 
     for class_name, class_dirs in classes_dict.items():
         features = classes_features[class_name]
         for dir_path in class_dirs:
+            print(f"parsing snapshots from {dir_path}")
             files = list(os.listdir(dir_path))[:max_files_in_dir]
             for file_id, file in enumerate(files):
                 all_data = genfromtxt(
@@ -49,7 +50,12 @@ def get_features_df(group_features: Dict[str, List[SnapshotMeta]]) -> pd.DataFra
         'dev_agg_in_pixels',
 
         'too_low_pxs_mean',
-        'too_high_pxs_mean'
+        'too_high_pxs_mean',
+
+        'k_het',
+
+        'k_low_part',
+        'k_high_part'
     ]
 
     features_dict = {
@@ -64,18 +70,23 @@ def get_features_df(group_features: Dict[str, List[SnapshotMeta]]) -> pd.DataFra
             # cast for ide
             snapshot_meta: SnapshotMeta = snapshot_meta
 
-            for band_key, band_value in snapshot_meta.bands.items():
+            for band_name, band_data in snapshot_meta.bands.items():
                 # cast for ide
-                band_value: BandData = band_value
+                band_data: BandData = band_data
 
-                features_dict[f'{band_key}_mean_agg_in_channels'].append(band_value.mean_in_ch_by_px.mean())
-                features_dict[f'{band_key}_dev_agg_in_channels'].append(band_value.mean_dev_in_ch)
+                features_dict[f'{band_name}_mean_agg_in_channels'].append(band_data.mean_in_ch_by_px.mean())
+                features_dict[f'{band_name}_dev_agg_in_channels'].append(band_data.mean_dev_in_ch)
 
-                features_dict[f'{band_key}_mean_agg_in_pixels'].append(band_value.mean_in_pxs_by_ch.mean())
-                features_dict[f'{band_key}_dev_agg_in_pixels'].append(band_value.mean_dev_in_px)
+                features_dict[f'{band_name}_mean_agg_in_pixels'].append(band_data.mean_in_pxs_by_ch.mean())
+                features_dict[f'{band_name}_dev_agg_in_pixels'].append(band_data.mean_dev_in_px)
 
-                features_dict[f'{band_key}_too_low_pxs_mean'].append(band_value.get_too_low_pxs().mean())
-                features_dict[f'{band_key}_too_high_pxs_mean'].append(band_value.get_too_high_pxs().mean())
+                features_dict[f'{band_name}_too_low_pxs_mean'].append(band_data.get_too_low_pxs().mean())
+                features_dict[f'{band_name}_too_high_pxs_mean'].append(band_data.get_too_high_pxs().mean())
+
+                features_dict[f'{band_name}_k_het'].append(band_data.k_het)
+
+                features_dict[f'{band_name}_k_low_part'].append(band_data.k_low_part)
+                features_dict[f'{band_name}_k_high_part'].append(band_data.k_high_part)
 
             features_dict['class'].append(class_name)
             features_dict['class_generalized'].append('phyto' if 'phyto' in class_name else 'health')

@@ -1,6 +1,7 @@
-from typing import List, Dict
+from typing import List, Dict, Tuple
 import numpy as np
 import pandas as pd
+from sklearn.cluster import KMeans
 
 
 class BandRange:
@@ -134,6 +135,31 @@ class BandData:
             fill_out_with_zeros=True
         )
 
+    def get_clusters_features(self, X) -> Tuple[float, float, float]:
+        # X = X[:, :9]
+        X_normalized = np.zeros(shape=X.shape)
+        for ch in range(X.shape[1]):
+            X_curr = X[:, ch]
+            X_normalized[:, ch] = (X_curr - X_curr.mean()) / (X_curr.max() - X_curr.min())
+
+        c_num = 3
+        kmeans = KMeans(n_clusters=c_num, random_state=42).fit(X_normalized)
+        labels = kmeans.labels_
+        clusters = [X[[i for i, pt_label in enumerate(labels) if pt_label == filt_label], :-2]
+                    for filt_label in range(c_num)]
+
+        k_low = clusters[np.argmin([cl.mean() for cl in clusters])]
+        k_high = clusters[np.argmax([cl.mean() for cl in clusters])]
+
+        k_ratio = min([len(k_low), len(k_high)]) / max([len(k_low), len(k_high)])
+        k_het = abs(k_low.mean() - k_high.mean()) / (k_low.mean() + k_high.mean()) if k_ratio > 0.25 \
+            else 0
+
+        k_low_part = len(k_low) / len(X)
+        k_high_part = len(k_high) / len(X)
+
+        return k_het, k_low_part, k_high_part
+
     @property
     def mean_dev_in_px(self) -> np.float_:
         return self.right_dev_in_pxs_by_ch.mean() - self.left_dev_in_pxs_by_ch.mean()
@@ -199,6 +225,9 @@ class BandData:
             coordinates=self.coordinates,
             band_data=self.band_data
         )
+
+        self.k_het, self.k_low_part, self.k_high_part \
+            = self.get_clusters_features(X=np.concatenate((self.band_data, self.coordinates), axis=1))
 
 
 BANDS_DICT = {

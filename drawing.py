@@ -129,6 +129,13 @@ def draw_snapshots_in_features_space(features_df: pd.DataFrame, res_dir: Path):
             y_key='too_high_pxs_mean',
             y_title='Mean value of highest pixels',
             title='comparison of snapshots aggregated in pixels by lowest and highets pixels'
+        ),
+        Feature(
+            x_key='k_low_part',
+            x_title='Normalized size of cold cluster',
+            y_key='k_het',
+            y_title='Heterogeneity of cold cluster',
+            title='comparison of snapshots aggregated in pixels by lowest and highets pixels'
         )
     ]
 
@@ -212,7 +219,10 @@ def draw_hp_glasses(
                         yref="y",
                         text=f"{snapshot.name}/"
                              f"[mean_pixel={snapshot.bands[bname].mean_in_pxs_by_ch.mean().round(2)}, "
-                             f"mean_dev={snapshot.bands[bname].mean_dev_in_px.round(2)}]"
+                             f"mean_dev={snapshot.bands[bname].mean_dev_in_px.round(2)}, "
+                             f"k_low_part = {snapshot.bands[bname].k_low_part.__round__(2)}, "
+                             f"k_low_het = {snapshot.bands[bname].k_het.__round__(2)}"
+                             f"]"
                         # f"[lowest_avg={snapshot.bands[bname].get_too_low_pxs().mean().round(2)}, "
                         # f"highest_avg={snapshot.bands[bname].get_too_high_pxs().mean().round(2)}]"
                         ,
