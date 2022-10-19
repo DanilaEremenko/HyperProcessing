@@ -42,58 +42,20 @@ def parse_classes(classes_dict: Dict[str, List[str]], max_files_in_dir: int) -> 
 
 
 def get_features_df(group_features: Dict[str, List[SnapshotMeta]]) -> pd.DataFrame:
-    band_metrics = [
-        'mean_agg_in_channels',
-        'dev_agg_in_channels',
-
-        'mean_agg_in_pixels',
-        'dev_agg_in_pixels',
-
-        'too_low_pxs_mean',
-        'too_high_pxs_mean',
-
-        'k_het',
-
-        'k_low_part',
-        'k_high_part'
-    ]
-
-    features_dict = {
-        **{f"{band_name}_{band_metric}": [] for band_name in BANDS_DICT.keys() for band_metric in band_metrics},
-        'class': [],
-        'class_generalized': [],
-        'name': []
-    }
+    features_list = []
 
     for col_i, (class_name, class_snapshots) in enumerate(group_features.items()):
         for row_i, snapshot_meta in enumerate(class_snapshots):
             # cast for ide
             snapshot_meta: SnapshotMeta = snapshot_meta
 
-            for band_name, band_data in snapshot_meta.bands.items():
-                # cast for ide
-                band_data: BandData = band_data
+            features_dict = snapshot_meta.get_features_dict()
+            features_dict['class'] = class_name
+            features_dict['class_generalized'] = 'phyto' if 'phyto' in class_name else 'health'
 
-                features_dict[f'{band_name}_mean_agg_in_channels'].append(band_data.mean_in_ch_by_px.mean())
-                features_dict[f'{band_name}_dev_agg_in_channels'].append(band_data.mean_dev_in_ch)
+            features_list.append(features_dict)
 
-                features_dict[f'{band_name}_mean_agg_in_pixels'].append(band_data.mean_in_pxs_by_ch.mean())
-                features_dict[f'{band_name}_dev_agg_in_pixels'].append(band_data.mean_dev_in_px)
-
-                features_dict[f'{band_name}_too_low_pxs_mean'].append(band_data.get_too_low_pxs().mean())
-                features_dict[f'{band_name}_too_high_pxs_mean'].append(band_data.get_too_high_pxs().mean())
-
-                features_dict[f'{band_name}_k_het'].append(band_data.k_het)
-
-                features_dict[f'{band_name}_k_low_part'].append(band_data.k_low_part)
-                features_dict[f'{band_name}_k_high_part'].append(band_data.k_high_part)
-
-            features_dict['class'].append(class_name)
-            features_dict['class_generalized'].append('phyto' if 'phyto' in class_name else 'health')
-
-            features_dict['name'].append(snapshot_meta.name)
-
-    features_df = pd.DataFrame(features_dict)
+    features_df = pd.DataFrame(features_list)
 
     # normalize features
     # for key in features_df.keys():

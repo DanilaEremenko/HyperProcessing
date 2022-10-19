@@ -1,3 +1,4 @@
+from math import sin
 from typing import List, Dict, Tuple
 import numpy as np
 import pandas as pd
@@ -58,6 +59,27 @@ def calculate_dev_in_pixels(arr, mode='left') -> np.ndarray:
         raise Exception(f"Undefined mode = {mode}")
 
     return dev_arr
+
+
+class ClusterData:
+    def __init__(self, cl_data: np.ndarray, src_size: int):
+        self.part = len(cl_data) / src_size
+        self.het = self.part * cl_data.std() / cl_data.mean()
+        self.mean = cl_data.mean()
+
+
+class ClusterFeatures:
+    def __init__(self, c_low: ClusterData, c_high: ClusterData):
+        self.c_low = c_low
+        self.c_high = c_high
+        self.all_het = 100 * abs(c_low.part - c_high.part) * abs(c_low.mean - c_high.mean) / (c_low.mean + c_high.mean)
+
+    def __str__(self):
+        return f"c_low_part = {self.c_low.part.__round__(2)}, " \
+               f"c_low_mean = {self.c_low.mean.__round__(2)}, " \
+               f"c_low_het = {self.c_low.het.__round__(2)}, " \
+               f"c_high_mean = {self.c_high.mean.__round__(2)}, " \
+               f"c_high_het = {self.c_high.het.__round__(2)}"
 
 
 class BandData:
@@ -135,30 +157,26 @@ class BandData:
             fill_out_with_zeros=True
         )
 
-    def get_clusters_features(self, X) -> Tuple[float, float, float]:
+    def get_clusters_features(self, X) -> ClusterFeatures:
         # X = X[:, :9]
         X_normalized = np.zeros(shape=X.shape)
         for ch in range(X.shape[1]):
             X_curr = X[:, ch]
             X_normalized[:, ch] = (X_curr - X_curr.mean()) / (X_curr.max() - X_curr.min())
 
-        c_num = 3
+        c_num = 2
         kmeans = KMeans(n_clusters=c_num, random_state=42).fit(X_normalized)
         labels = kmeans.labels_
         clusters = [X[[i for i, pt_label in enumerate(labels) if pt_label == filt_label], :-2]
                     for filt_label in range(c_num)]
 
-        k_low = clusters[np.argmin([cl.mean() for cl in clusters])]
-        k_high = clusters[np.argmax([cl.mean() for cl in clusters])]
+        # if k_smallest_size > 0.25 \
+        # else 0
 
-        k_ratio = min([len(k_low), len(k_high)]) / max([len(k_low), len(k_high)])
-        k_het = abs(k_low.mean() - k_high.mean()) / (k_low.mean() + k_high.mean()) if k_ratio > 0.25 \
-            else 0
-
-        k_low_part = len(k_low) / len(X)
-        k_high_part = len(k_high) / len(X)
-
-        return k_het, k_low_part, k_high_part
+        return ClusterFeatures(
+            c_low=ClusterData(cl_data=clusters[np.argmin([cl.mean() for cl in clusters])], src_size=len(X)),
+            c_high=ClusterData(cl_data=clusters[np.argmax([cl.mean() for cl in clusters])], src_size=len(X))
+        )
 
     @property
     def mean_dev_in_px(self) -> np.float_:
@@ -226,8 +244,7 @@ class BandData:
             band_data=self.band_data
         )
 
-        self.k_het, self.k_low_part, self.k_high_part \
-            = self.get_clusters_features(X=np.concatenate((self.band_data, self.coordinates), axis=1))
+        self.cl_features = self.get_clusters_features(X=np.concatenate((self.band_data, self.coordinates), axis=1))
 
 
 BANDS_DICT = {
@@ -253,3 +270,50 @@ class SnapshotMeta:
             band_name: BandData(band_range=band_range, all_data=all_data)
             for band_name, band_range in BANDS_DICT.items()
         }
+
+    def get_features_dict(self) -> dict:
+        features_dict = {'name': self.name}
+
+        for band_name, band_data in self.bands.items():
+            # cast for ide
+            band_data: BandData = band_data
+
+            curr_band_features = {
+                'mean_agg_in_pixels': band_data.mean_in_pxs_by_ch.mean(),
+                'dev_agg_in_pixels': band_data.mean_dev_in_px,
+
+                'too_low_pxs_mean': band_data.get_too_low_pxs().mean(),
+                'too_high_pxs_mean': band_data.get_too_high_pxs().mean(),
+
+                'cl_all_het': band_data.cl_features.all_het,
+
+                'cl_low_mean': band_data.cl_features.c_low.mean,
+                'cl_high_mean': band_data.cl_features.c_high.mean,
+
+                'cl_low_het': band_data.cl_features.c_low.het,
+                'cl_high_het': band_data.cl_features.c_high.het,
+
+                'cl_low_part': band_data.cl_features.c_low.part,
+                'cl_high_part': band_data.cl_features.c_high.part
+            }
+
+            generate_func_map = {
+                '^2': lambda x: x ** 2,
+                '^3': lambda x: x ** 3,
+                'sin': lambda x: sin(x)
+            }
+
+            curr_band_features = {
+                **curr_band_features,
+                **{
+                    f"{src_name}_{postf}": func(src_val)
+                    for src_name, src_val in curr_band_features.items()
+                    for postf, func in generate_func_map.items()
+                }
+            }
+
+            curr_band_features = {f"{band_name}_{key}": val for key, val in curr_band_features.items()}
+
+            features_dict = {**features_dict, **curr_band_features}
+
+        return features_dict
