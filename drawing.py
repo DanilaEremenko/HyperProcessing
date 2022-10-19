@@ -7,6 +7,7 @@ import plotly.graph_objs as go
 
 from clf import clf_build
 from snapshots_processing import SnapshotMeta, BANDS_DICT
+import matplotlib.pyplot as plt
 
 
 def draw_snapshots_as_reflectance(classes_dict: Dict[str, List[SnapshotMeta]], res_path: str,
@@ -131,10 +132,17 @@ def draw_snapshots_in_features_space(features_df: pd.DataFrame, res_dir: Path):
             title='comparison of snapshots aggregated in pixels by lowest and highets pixels'
         ),
         Feature(
-            x_key='k_low_part',
+            x_key='cl_low_part',
             x_title='Normalized size of cold cluster',
-            y_key='k_het',
-            y_title='Heterogeneity of cold cluster',
+            y_key='cl_all_het',
+            y_title='Heterogeneity difference between two clusters',
+            title='comparison of snapshots aggregated in pixels by lowest and highets pixels'
+        ),
+        Feature(
+            x_key='cl_low_het',
+            x_title='Heterogeneity of cold cluster',
+            y_key='cl_high_het',
+            y_title='Heterogeneity of hot cluster',
             title='comparison of snapshots aggregated in pixels by lowest and highets pixels'
         )
     ]
@@ -173,6 +181,31 @@ def draw_snapshots_in_features_space(features_df: pd.DataFrame, res_dir: Path):
 
         fig.update_layout(height=1200, width=1200 * len(features_list))
         fig.write_html(f"{res_dir}/{band_name}/features_space_in_band={band_name}.html")
+
+
+def draw_snapshots_in_all_paired_features_space(features_df: pd.DataFrame, res_dir: Path):
+    colors = ['#4FD51D', '#FF9999', '#E70000', "#830000", "#180000"]
+
+    for band_name in BANDS_DICT.keys():
+        features_list = [feature_name for feature_name in list(features_df.keys()) if band_name in feature_name]
+
+        if len(features_list) == 0:
+            continue
+
+        fig, axes = plt.subplots(nrows=len(features_list), ncols=len(features_list), figsize=(25, 25))
+        for class_name, color in zip(list(features_df['class'].unique()), colors):
+            for j, feature_x in enumerate(features_list):
+                for i, feature_y in enumerate(features_list):
+                    axes[j][i].scatter(
+                        x=features_df[features_df['class'] == class_name][feature_x],
+                        y=features_df[features_df['class'] == class_name][feature_y],
+                        color=color
+                    )
+                    axes[j][i].set_ylabel(feature_y)
+                    axes[j][i].set_xlabel(feature_x)
+
+        fig.tight_layout()
+        fig.savefig(f"{res_dir}/{band_name}/features_space_pairs_in_band={band_name}.png")
 
 
 def draw_hp_glasses(
@@ -220,9 +253,7 @@ def draw_hp_glasses(
                         text=f"{snapshot.name}/"
                              f"[mean_pixel={snapshot.bands[bname].mean_in_pxs_by_ch.mean().round(2)}, "
                              f"mean_dev={snapshot.bands[bname].mean_dev_in_px.round(2)}, "
-                             f"k_low_part = {snapshot.bands[bname].k_low_part.__round__(2)}, "
-                             f"k_low_het = {snapshot.bands[bname].k_het.__round__(2)}"
-                             f"]"
+                             f"{snapshot.bands[bname].cl_features}]"
                         # f"[lowest_avg={snapshot.bands[bname].get_too_low_pxs().mean().round(2)}, "
                         # f"highest_avg={snapshot.bands[bname].get_too_high_pxs().mean().round(2)}]"
                         ,

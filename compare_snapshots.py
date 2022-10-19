@@ -7,7 +7,8 @@ import os
 import pandas as pd
 
 from clf import clf_build, clf_visualize
-from drawing import draw_hp_glasses, draw_snapshots_as_reflectance, draw_snapshots_in_features_space
+from drawing import draw_hp_glasses, draw_snapshots_as_reflectance, draw_snapshots_in_features_space, \
+    draw_snapshots_in_all_paired_features_space
 from snapshots_processing import SnapshotMeta, BandData, BANDS_DICT
 
 RES_DIR = Path('comparison_no_filt_tryy')
@@ -92,6 +93,7 @@ def draw_files(classes_features_dict: Dict[str, List[SnapshotMeta]], features_df
 
     # draw snapshots in features space
     draw_snapshots_in_features_space(features_df=features_df, res_dir=RES_DIR)
+    draw_snapshots_in_all_paired_features_space(features_df=features_df, res_dir=RES_DIR)
 
 
 def main() -> pd.DataFrame:
