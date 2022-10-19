@@ -298,9 +298,9 @@ class SnapshotMeta:
             }
 
             generate_func_map = {
-                '^2': lambda x: x ** 2,
-                '^3': lambda x: x ** 3,
-                'sin': lambda x: sin(x)
+                # '^2': lambda x: x ** 2,
+                # '^3': lambda x: x ** 3,
+                # 'sin': lambda x: sin(x)
             }
 
             curr_band_features = {
