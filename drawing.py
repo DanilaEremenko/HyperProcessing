@@ -106,9 +106,11 @@ class Feature:
         self.title = title
 
 
-def draw_snapshots_in_features_space(features_df: pd.DataFrame, res_dir: Path):
-    colors = ['#4FD51D', '#FF9999', '#E70000', "#830000", "#180000"]
+# CLASS_COLORS = ['#4FD51D', '#FF9999', '#E70000', "#830000", "#180000"]
+CLASS_COLORS = ['#4FD51D', '#FF9999', '#E70000', '#2ED30B', '#DD7777', '#C50000']
 
+
+def draw_snapshots_in_features_space(features_df: pd.DataFrame, res_dir: Path):
     features_list: List[Feature] = [
         # Feature(
         #     x_key='mean_agg_in_channels',
@@ -154,7 +156,7 @@ def draw_snapshots_in_features_space(features_df: pd.DataFrame, res_dir: Path):
 
         fig = make_subplots(rows=1, cols=len(features_list), subplot_titles=titles_band)
 
-        for class_name, color in zip(list(features_df['class'].unique()), colors):
+        for class_name, color in zip(list(features_df['class'].unique()), CLASS_COLORS):
             for i, feature in enumerate(features_list):
                 fig.add_trace(
                     go.Scatter(
@@ -184,8 +186,6 @@ def draw_snapshots_in_features_space(features_df: pd.DataFrame, res_dir: Path):
 
 
 def draw_snapshots_in_all_paired_features_space(features_df: pd.DataFrame, res_dir: Path):
-    colors = ['#4FD51D', '#FF9999', '#E70000', "#830000", "#180000"]
-
     for band_name in BANDS_DICT.keys():
         features_list = [feature_name for feature_name in list(features_df.keys()) if band_name in feature_name]
 
@@ -193,7 +193,7 @@ def draw_snapshots_in_all_paired_features_space(features_df: pd.DataFrame, res_d
             continue
 
         fig, axes = plt.subplots(nrows=len(features_list), ncols=len(features_list), figsize=(25, 25))
-        for class_name, color in zip(list(features_df['class'].unique()), colors):
+        for class_name, color in zip(list(features_df['class'].unique()), CLASS_COLORS):
             for j, feature_x in enumerate(features_list):
                 for i, feature_y in enumerate(features_list):
                     axes[j][i].scatter(
