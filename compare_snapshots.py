@@ -169,6 +169,6 @@ if __name__ == '__main__':
             f"{range}_{pred}"
             for pred in ['mean_agg_in_pixels', 'dev_agg_in_pixels', 'too_low_pxs_mean', 'too_high_pxs_mean',
                          'cl_low_het', 'cl_high_het', 'cl_high_part', 'cl_low_part']
-            for range in ['blue', 'red', 'orange', 'infrared', 'green']
+            for range in ['blue', 'infrared', 'green']
         ],
     )
