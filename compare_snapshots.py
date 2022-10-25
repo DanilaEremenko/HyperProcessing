@@ -148,41 +148,17 @@ if __name__ == '__main__':
         for class_name, class_df in features_by_classes.items()
     }
 
-    # clf_results = clf_build(
-    #     features_df=features_df,
-    #     x_keys=[
-    #         'blue_mean_agg_in_pixels',
-    #         'blue_dev_agg_in_pixels',
-    #         'blue_too_low_pxs_mean',
-    #         'blue_too_high_pxs_mean',
-    #         'infrared_mean_agg_in_pixels',
-    #         'infrared_dev_agg_in_pixels',
-    #         'infrared_too_low_pxs_mean',
-    #         'infrared_too_high_pxs_mean',
-    #         'green_mean_agg_in_pixels',
-    #         'green_dev_agg_in_pixels',
-    #         'green_too_low_pxs_mean',
-    #         'green_too_high_pxs_mean'
-    #     ],
-    #     y_key='class_generalized',
-    #     method_name='lr'
-    # )
-    #
-    # clf_visualize(
-    #     clf=clf_results['clf'],
-    #     x_keys=[
-    #         'blue_mean_agg_in_pixels',
-    #         'blue_dev_agg_in_pixels',
-    #         'blue_too_low_pxs_mean',
-    #         'blue_too_high_pxs_mean',
-    #         'infrared_mean_agg_in_pixels',
-    #         'infrared_dev_agg_in_pixels',
-    #         'infrared_too_low_pxs_mean',
-    #         'infrared_too_high_pxs_mean',
-    #         'green_mean_agg_in_pixels',
-    #         'green_dev_agg_in_pixels',
-    #         'green_too_low_pxs_mean',
-    #         'green_too_high_pxs_mean'
-    #     ],
-    #     class_labels=['health', 'phyto']
-    # )
+    clf_results = clf_build(
+        features_df=features_df,
+        x_keys=[
+            f"{range}_{pred}"
+            for pred in ['mean_agg_in_pixels', 'dev_agg_in_pixels', 'too_low_pxs_mean', 'too_high_pxs_mean',
+                         'cl_low_het', 'cl_high_het', 'cl_high_part', 'cl_low_part']
+            for range in ['blue', 'infrared', 'green']
+        ],
+        y_key='class_generalized',
+        method_name='lr',
+        # method_name='svc',
+        # clf_args=dict(kernel='rbf', C=3.),
+        # dec_analyze=True
+    )

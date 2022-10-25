@@ -12,13 +12,21 @@ from sklearn.tree import DecisionTreeClassifier
 import pandas as pd
 
 
-def clf_visualize(clf, x_keys: List[str], class_labels: List[str]):
+def clf_decision_analyze(clf, features: List[str], class_labels: List[str]):
     if isinstance(clf, DecisionTreeClassifier):
         fig = plt.figure(figsize=(25, 20))
-        tree.plot_tree(clf, feature_names=x_keys, class_names=class_labels, filled=True)
-        fig.savefig("decision_tree.png")
+        tree.plot_tree(clf, feature_names=features, class_names=class_labels, filled=True)
+        res_path = "decision_tree.png"
+        fig.savefig(res_path)
+        print(f"Decision tree structure saved into {res_path}")
     elif isinstance(clf, LogisticRegression):
-        pass  # TODO implement
+        imps = clf.coef_.flatten()
+        assert len(imps) == len(features)
+        imp_dict = dict(zip(features, imps))
+        imp_dict = dict(sorted(imp_dict.items(), key=lambda item: abs(item[1])))
+
+        for key, val in imp_dict.items():
+            print(f"{key}:{val}")
 
 
 def clf_build(
@@ -26,7 +34,8 @@ def clf_build(
         x_keys: List[str],
         y_key: str,
         method_name='lr',
-        clf_args: Optional[dict] = None
+        clf_args: Optional[dict] = None,
+        dec_analyze=False
 ) -> Dict[str, float]:
     clf_args = {} if clf_args is None else clf_args
 
@@ -47,6 +56,9 @@ def clf_build(
         raise Exception(f"Undefined clf method = {method_name}")
 
     clf.fit(x_train, y_train)
+
+    if dec_analyze:
+        clf_decision_analyze(clf=clf[-1], features=x_keys, class_labels=['health', 'phyto'])
 
     y_train_pred = clf.predict(x_train)
     y_test_pred = clf.predict(x_test)
