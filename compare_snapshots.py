@@ -6,9 +6,9 @@ from numpy import genfromtxt
 import os
 import pandas as pd
 
-from clf import clf_build, clf_visualize
+from clf import clf_build
 from drawing import draw_hp_glasses, draw_snapshots_as_reflectance, draw_snapshots_in_features_space, \
-    draw_snapshots_in_all_paired_features_space
+    draw_snapshots_in_all_paired_features_space, draw_tsne
 from snapshots_processing import SnapshotMeta, BandData, BANDS_DICT
 
 RES_DIR = Path('comparison_no_filt_tryy')
@@ -161,4 +161,14 @@ if __name__ == '__main__':
         # method_name='svc',
         # clf_args=dict(kernel='rbf', C=3.),
         # dec_analyze=True
+    )
+
+    draw_tsne(
+        features_df=features_df,
+        features=[
+            f"{range}_{pred}"
+            for pred in ['mean_agg_in_pixels', 'dev_agg_in_pixels', 'too_low_pxs_mean', 'too_high_pxs_mean',
+                         'cl_low_het', 'cl_high_het', 'cl_high_part', 'cl_low_part']
+            for range in ['blue', 'red', 'orange', 'infrared', 'green']
+        ],
     )

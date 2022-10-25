@@ -4,6 +4,7 @@ from typing import List, Dict, Optional
 import pandas as pd
 from plotly.subplots import make_subplots
 import plotly.graph_objs as go
+from sklearn.manifold import TSNE
 
 from clf import clf_build
 from snapshots_processing import SnapshotMeta, BANDS_DICT
@@ -206,6 +207,38 @@ def draw_snapshots_in_all_paired_features_space(features_df: pd.DataFrame, res_d
 
         fig.tight_layout()
         fig.savefig(f"{res_dir}/{band_name}/features_space_pairs_in_band={band_name}.png")
+
+
+def draw_tsne(features_df: pd.DataFrame, features: List[str], res_dir: Optional[str] = None):
+    tsne_arr = TSNE().fit_transform(features_df[features])
+
+    fig = go.Figure()
+
+    for class_name, color in zip(list(features_df['class'].unique()), CLASS_COLORS):
+        class_rows = features_df[features_df['class'] == class_name]
+        fig.add_trace(
+            go.Scatter(
+                name=class_name,
+                legendgroup=class_name,
+                mode='markers',
+                text=class_rows['name'],
+                x=tsne_arr[class_rows.index, 0],
+                y=tsne_arr[class_rows.index, 1],
+                marker=dict(
+                    color=color,
+                    size=20,
+                    line=dict(
+                        color='Black',
+                        width=2
+                    )
+                ),
+            )
+        )
+
+    if res_dir is None:
+        fig.show()
+    else:
+        fig.write_html(f"{res_dir}/features_in_tsne.html")
 
 
 def draw_hp_glasses(
