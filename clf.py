@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 
 from sklearn import preprocessing, tree, metrics
 from sklearn.linear_model import LogisticRegression
-from sklearn.model_selection import cross_val_score, train_test_split
+from sklearn.model_selection import cross_val_score, train_test_split, StratifiedKFold
 from sklearn.pipeline import make_pipeline
 from sklearn.svm import SVC
 from sklearn.tree import DecisionTreeClassifier
@@ -80,7 +80,9 @@ def clf_build(
         'test_auc': metrics.auc(
             *metrics.roc_curve(y_score=str_to_int(y_test_pred), y_true=str_to_int(y_test), pos_label=2)[:2]
         ).__round__(2),
-
-        'cross_val': cross_val_score(clf, x_all, y_all, cv=5).round(2),
+        'cross_val': cross_val_score(
+            clf, x_all, y_all,
+            cv=StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
+        ).round(2),
         'clf': clf
     }
