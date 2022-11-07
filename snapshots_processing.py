@@ -180,11 +180,13 @@ class BandData:
 
     @property
     def mean_dev_in_px(self) -> np.float_:
-        return self.right_dev_in_pxs_by_ch.mean() - self.left_dev_in_pxs_by_ch.mean()
+        # return self.right_dev_in_pxs_by_ch.mean() - self.left_dev_in_pxs_by_ch.mean()
+        return self.band_data.mean(axis=1).std()
 
     @property
     def mean_dev_in_ch(self) -> np.float_:
-        return self.right_dev_in_chs_by_px.mean() - self.left_dev_in_chs_by_px.mean()
+        # return self.right_dev_in_chs_by_px.mean() - self.left_dev_in_chs_by_px.mean()
+        return self.band_data.mean(axis=0).std()
 
     @staticmethod
     def get_padded_data(coordinates: np.ndarray, band_data: np.ndarray) -> np.ndarray:
@@ -281,6 +283,7 @@ class SnapshotMeta:
             curr_band_features = {
                 'mean_agg_in_pixels': band_data.mean_in_pxs_by_ch.mean(),
                 'dev_agg_in_pixels': band_data.mean_dev_in_px,
+                'dev_agg_in_channels': band_data.mean_dev_in_ch,
 
                 'too_low_pxs_mean': band_data.get_too_low_pxs().mean(),
                 'too_high_pxs_mean': band_data.get_too_high_pxs().mean(),
