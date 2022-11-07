@@ -138,13 +138,13 @@ def main() -> pd.DataFrame:
 if __name__ == '__main__':
     features_df = main()
 
-    features_corr = features_df[[key for key in features_df.keys() if '_mean_agg_in_pixels' in key]].corr()
+    features_corr = features_df[[key for key in features_df.keys()]].corr()
 
     features_by_classes = {class_name: features_df[features_df['class'] == class_name]
                            for class_name in features_df['class'].unique()}
 
     features_corr_by_classes = {
-        class_name: class_df[[key for key in class_df.keys() if '_mean_agg_in_pixels' in key]].corr()
+        class_name: class_df[[key for key in class_df.keys()]].corr()
         for class_name, class_df in features_by_classes.items()
     }
 
@@ -152,9 +152,10 @@ if __name__ == '__main__':
         features_df=features_df,
         x_keys=[
             f"{range}_{pred}"
-            for pred in ['mean_agg_in_pixels', 'dev_agg_in_pixels', 'too_low_pxs_mean', 'too_high_pxs_mean',
-                         'cl_low_het', 'cl_high_het', 'cl_high_part', 'cl_low_part']
-            for range in ['blue', 'infrared', 'green']
+            for pred in ['mean_agg_in_pixels', 'dev_agg_in_pixels', 'dev_agg_in_channels',
+                         'too_low_pxs_mean', 'too_high_pxs_mean',
+                         'cl_all_het', 'cl_low_het', 'cl_high_het', 'cl_high_part', 'cl_low_part']
+            for range in ['blue', 'cyan', 'infrared', 'green']
         ],
         y_key='class_generalized',
         method_name='lr',
