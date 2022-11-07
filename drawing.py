@@ -188,12 +188,18 @@ def draw_snapshots_in_features_space(features_df: pd.DataFrame, res_dir: Path):
 
 def draw_snapshots_in_all_paired_features_space(features_df: pd.DataFrame, res_dir: Path):
     for band_name in BANDS_DICT.keys():
-        features_list = [feature_name for feature_name in list(features_df.keys()) if band_name in feature_name]
+        features_list = [feature_name for feature_name in list(features_df.keys())
+                         if band_name == feature_name.split('_')[0]]
 
         if len(features_list) == 0:
             continue
 
-        fig, axes = plt.subplots(nrows=len(features_list), ncols=len(features_list), figsize=(25, 25))
+        each_fig_size = 2.5
+
+        fig, axes = plt.subplots(
+            nrows=len(features_list), ncols=len(features_list),
+            figsize=(each_fig_size * len(features_list), each_fig_size * len(features_list))
+        )
         for class_name, color in zip(list(features_df['class'].unique()), CLASS_COLORS):
             for j, feature_x in enumerate(features_list):
                 for i, feature_y in enumerate(features_list):
