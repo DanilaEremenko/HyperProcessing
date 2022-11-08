@@ -1,6 +1,8 @@
 from typing import List, Dict, Optional
 
 import matplotlib.pyplot as plt
+import numpy as np
+from scipy.special import softmax
 
 from sklearn import preprocessing, tree, metrics
 from sklearn.linear_model import LogisticRegression
@@ -20,7 +22,8 @@ def clf_decision_analyze(clf, features: List[str], class_labels: List[str]):
         fig.savefig(res_path)
         print(f"Decision tree structure saved into {res_path}")
     elif isinstance(clf, LogisticRegression):
-        imps = clf.coef_.flatten()
+        imps = np.abs(clf.coef_.flatten())
+        imps = softmax(imps)
         assert len(imps) == len(features)
         imp_dict = dict(zip(features, imps))
         imp_dict = dict(sorted(imp_dict.items(), key=lambda item: abs(item[1])))
