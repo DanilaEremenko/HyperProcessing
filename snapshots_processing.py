@@ -206,6 +206,16 @@ class BandData:
 
         return padded_data
 
+    @property
+    def padded_data(self) -> np.array:
+        if self._padded_data is None:
+            self._padded_data = self.get_padded_data(
+                coordinates=self.coordinates,
+                band_data=self.band_data
+            )
+
+        return self._padded_data
+
     def __init__(self, band_range: BandRange, all_data: np.ndarray):
         # separate coordinates and snapshot data
         self.coordinates = all_data[1:, :2].copy()
@@ -241,10 +251,7 @@ class BandData:
 
         self.band_data = band_data
 
-        self.padded_data = self.get_padded_data(
-            coordinates=self.coordinates,
-            band_data=self.band_data
-        )
+        self._padded_data = None  # let's go lazy
 
         self.cl_features = self.get_clusters_features(X=np.concatenate((self.band_data, self.coordinates), axis=1))
 
