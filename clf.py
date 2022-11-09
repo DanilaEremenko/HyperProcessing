@@ -38,7 +38,8 @@ def clf_build(
         y_key: str,
         method_name='lr',
         clf_args: Optional[dict] = None,
-        dec_analyze=False
+        dec_analyze=False,
+        clf_pretrained=None
 ) -> Dict[str, float]:
     clf_args = {} if clf_args is None else clf_args
 
@@ -49,16 +50,19 @@ def clf_build(
 
     x_train, x_test, y_train, y_test = train_test_split(x_all, y_all, test_size=0.33, random_state=42)
 
-    if method_name == 'lr':
-        clf = make_pipeline(scaler, LogisticRegression(**clf_args, random_state=16))
-    elif method_name == 'dt':
-        clf = make_pipeline(scaler, DecisionTreeClassifier(**clf_args, random_state=16))
-    elif method_name == 'svc':
-        clf = make_pipeline(scaler, SVC(**clf_args, random_state=16))
-    else:
-        raise Exception(f"Undefined clf method = {method_name}")
+    if clf_pretrained is None:
+        if method_name == 'lr':
+            clf = make_pipeline(scaler, LogisticRegression(**clf_args, random_state=16))
+        elif method_name == 'dt':
+            clf = make_pipeline(scaler, DecisionTreeClassifier(**clf_args, random_state=16))
+        elif method_name == 'svc':
+            clf = make_pipeline(scaler, SVC(**clf_args, random_state=16))
+        else:
+            raise Exception(f"Undefined clf method = {method_name}")
 
-    clf.fit(x_train, y_train)
+        clf.fit(x_train, y_train)
+    else:
+        clf = clf_pretrained
 
     if dec_analyze:
         clf_decision_analyze(clf=clf[-1], features=x_keys, class_labels=['health', 'phyto'])
