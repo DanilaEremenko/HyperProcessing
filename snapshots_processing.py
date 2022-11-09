@@ -280,7 +280,7 @@ class SnapshotMeta:
             for band_name, band_range in BANDS_DICT.items()
         }
 
-    def get_indexes_dict(self) -> dict:
+    def get_indexes_features(self) -> dict:
 
         R_HASH = {}
 
@@ -309,7 +309,7 @@ class SnapshotMeta:
             'NPCI': (R(682) - R(450)) / R(682) + R(450)
         }
 
-    def get_features_dict(self) -> dict:
+    def get_sep_band_features(self):
         features_dict = {'name': self.name}
 
         for band_name, band_data in self.bands.items():
@@ -356,3 +356,6 @@ class SnapshotMeta:
             features_dict = {**features_dict, **curr_band_features}
 
         return features_dict
+
+    def get_features_dict(self) -> dict:
+        return {**self.get_sep_band_features(), **self.get_indexes_features()}
