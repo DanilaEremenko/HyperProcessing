@@ -137,25 +137,38 @@ if __name__ == '__main__':
     clf_results = clf_build(
         features_df=features_df,
         x_keys=[
-            f"{range}_{pred}"
-            for pred in ['mean_agg_in_pixels', 'dev_agg_in_pixels', 'dev_agg_in_channels',
-                         'too_low_pxs_mean', 'too_high_pxs_mean',
-                         'cl_all_het', 'cl_low_het', 'cl_high_het', 'cl_high_part', 'cl_low_part']
-            for range in ['blue', 'cyan', 'infrared', 'green']
+            *[
+                f"{range}_{pred}"
+                for pred in [
+                    'mean_agg_in_pixels', 'dev_agg_in_pixels', 'dev_agg_in_channels',
+                    'too_low_pxs_mean', 'too_high_pxs_mean',
+                    'cl_all_het', 'cl_low_het', 'cl_high_het', 'cl_high_part', 'cl_low_part',
+                ]
+                for range in ['blue', 'cyan', 'infrared', 'green']
+            ],
+            *['ARI', 'BGI', 'BRI', 'CAI', 'CRI', 'CRI2', 'CSI1', 'CSI2', 'CUR', 'gNDVI', 'hNDVI', 'NPCI']
         ],
         y_key='class_generalized',
         method_name='lr',
+        clf_args=dict(max_iter=1e3)
         # method_name='svc',
         # clf_args=dict(kernel='rbf', C=3.),
-        # dec_analyze=True
+        # dec_analyze=True,
+        # clf_pretrained=clf_results['clf']
     )
 
     draw_tsne(
         features_df=features_df,
         features=[
-            f"{range}_{pred}"
-            for pred in ['mean_agg_in_pixels', 'dev_agg_in_pixels', 'too_low_pxs_mean', 'too_high_pxs_mean',
-                         'cl_low_het', 'cl_high_het', 'cl_high_part', 'cl_low_part']
-            for range in ['blue', 'infrared', 'green']
+            *[
+                f"{range}_{pred}"
+                for pred in [
+                    'mean_agg_in_pixels', 'dev_agg_in_pixels', 'dev_agg_in_channels',
+                    'too_low_pxs_mean', 'too_high_pxs_mean',
+                    'cl_all_het', 'cl_low_het', 'cl_high_het', 'cl_high_part', 'cl_low_part',
+                ]
+                for range in ['blue', 'cyan', 'infrared', 'green']
+            ],
+            *['ARI', 'BGI', 'BRI', 'CAI', 'CRI', 'CRI2', 'CSI1', 'CSI2', 'CUR', 'gNDVI', 'hNDVI', 'NPCI']
         ],
     )
