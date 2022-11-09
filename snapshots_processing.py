@@ -280,6 +280,35 @@ class SnapshotMeta:
             for band_name, band_range in BANDS_DICT.items()
         }
 
+    def get_indexes_dict(self) -> dict:
+
+        R_HASH = {}
+
+        def R(wl) -> float:
+            if wl not in R_HASH.keys():
+                R_HASH[wl] = self.bands['all'].get_band_data_in_wl(target_wl=wl).mean()
+
+            return R_HASH[wl]
+
+        return {
+
+            'ARI': 1 / R(550) - 1 / R(702),
+            'BGI': R(450) / R(550),
+            'BRI': R(450) / R(690),
+            'CAI': R(450) / R(690),
+
+            'CRI': 1 / R(510) - 1 / R(550),
+            'CRI2': 1 / R(510) - 1 / R(702),
+
+            'CSI1': R(694) / R(450),
+            'CSI2': R(694) / R(762),
+
+            'CUR': R(674) * R(550) / R(682) ** 2,
+            'gNDVI': (R(750) - R(550)) / (R(750) + R(550)),
+            'hNDVI': (R(826) - R(666)) / (R(826) + R(666)),
+            'NPCI': (R(682) - R(450)) / R(682) + R(450)
+        }
+
     def get_features_dict(self) -> dict:
         features_dict = {'name': self.name}
 
