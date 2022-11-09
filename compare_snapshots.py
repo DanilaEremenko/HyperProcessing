@@ -9,10 +9,22 @@ import pandas as pd
 from clf import clf_build
 from drawing import draw_hp_glasses, draw_snapshots_as_reflectance, draw_snapshots_in_features_space, \
     draw_snapshots_in_all_paired_features_space, draw_tsne
+from experiments import *
 from snapshots_processing import SnapshotMeta, BandData, BANDS_DICT
 
-RES_DIR = Path('comparison_no_filt_tryy')
+RES_DIR = Path('potato-comparison')
 RES_DIR.mkdir(exist_ok=True)
+
+CLASSES_DICT = {
+    **POTATO_OLD,
+    **POTATO_NEW,
+
+    # **WHEAT_1,
+    # **WHEAT_2,
+    # **WHEAT_3
+}
+
+MAX_FILES_IN_DIR = 50
 
 
 def draw_klebs_np(ax, snapshot: np.ndarray, title: str):
@@ -84,12 +96,12 @@ def draw_files(classes_features_dict: Dict[str, List[SnapshotMeta]], features_df
             )
 
     # draw channels and pixels curves
-    draw_snapshots_as_reflectance(classes_features_dict,
-                                  res_path=f'{RES_DIR}/class_comparison_by_agg_in_channels.html',
-                                  x_range=(0, 900), y_range=(0, 10_000), mode='ch')
-    draw_snapshots_as_reflectance(classes_features_dict,
-                                  res_path=f'{RES_DIR}/classes_comparison_by_agg_in_pixels.html',
-                                  x_range=(0, 200), y_range=(8_000, 10_000), mode='px')
+    # draw_snapshots_as_reflectance(classes_features_dict,
+    #                               res_path=f'{RES_DIR}/class_comparison_by_agg_in_channels.html',
+    #                               x_range=(0, 900), y_range=(0, 10_000), mode='ch')
+    # draw_snapshots_as_reflectance(classes_features_dict,
+    #                               res_path=f'{RES_DIR}/classes_comparison_by_agg_in_pixels.html',
+    #                               x_range=(0, 200), y_range=(8_000, 10_000), mode='px')
 
     # draw snapshots in features space
     draw_snapshots_in_features_space(features_df=features_df, res_dir=RES_DIR)
@@ -98,34 +110,8 @@ def draw_files(classes_features_dict: Dict[str, List[SnapshotMeta]], features_df
 
 def main() -> pd.DataFrame:
     classes_features_dict = parse_classes(
-        classes_dict={
-            'health': [
-                'csv/control/gala-control-bp-1_000',
-                'csv/control/gala-control-bp-2_000',
-                'csv/control/gala-control-bp-3_000',
-                'csv/control/gala-control-bp-4_000',
-            ],
-            'phyto1': [
-                'csv/phytophthora/gala-phytophthora-bp-1_000',
-                'csv/phytophthora/gala-phytophthora-bp-5-1_000',
-                # 'csv/phytophthora-ps-2_2-5_2/gala-phytophthora-2_2-5_2-1_000'
-            ],
-            'phyto2': [
-                'csv/phytophthora/gala-phytophthora-bp-2_000',
-                'csv/phytophthora/gala-phytophthora-bp-6-2_000',
-                # 'csv/phytophthora-ps-2_2-5_2/gala-phytophthora-2_2-5_2-2_000'
-            ],
-            # 'phyto3': [
-            #     'csv/phytophthora/gala-phytophthora-bp-3_000',
-            #     'csv/phytophthora/gala-phytophthora-bp-7-3_000',
-            # ],
-            # 'phyto4': [
-            #     'csv/phytophthora/gala-phytophthora-bp-4_000',
-            #     'csv/phytophthora/gala-phytophthora-bp-8-4_000',
-            # ]
-
-        },
-        max_files_in_dir=30
+        classes_dict=CLASSES_DICT,
+        max_files_in_dir=MAX_FILES_IN_DIR
     )
 
     features_df = get_features_df(group_features=classes_features_dict)
