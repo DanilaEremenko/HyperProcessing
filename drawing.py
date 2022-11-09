@@ -108,7 +108,12 @@ class Feature:
 
 
 # CLASS_COLORS = ['#4FD51D', '#FF9999', '#E70000', "#830000", "#180000"]
+
+# POTATO & POTATO NEW
 CLASS_COLORS = ['#4FD51D', '#FF9999', '#E70000', '#2ED30B', '#DD7777', '#C50000']
+
+# DIFFERENT WHEAT
+# CLASS_COLORS = ['#4FD51D', '#FF9999', '#2ED30B', '#DD7777', '#41C426', '#D07272']
 
 
 def draw_snapshots_in_features_space(features_df: pd.DataFrame, res_dir: Path):
