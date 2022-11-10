@@ -5,6 +5,7 @@ import numpy as np
 from numpy import genfromtxt
 import os
 import pandas as pd
+from pandas.core.dtypes.common import is_numeric_dtype
 
 from clf import clf_build
 from drawing import draw_hp_glasses, draw_snapshots_as_reflectance, draw_snapshots_in_features_space, \
@@ -12,19 +13,19 @@ from drawing import draw_hp_glasses, draw_snapshots_as_reflectance, draw_snapsho
 from experiments import *
 from snapshots_processing import SnapshotMeta, BandData, BANDS_DICT
 
-RES_DIR = Path('potato-comparison')
+RES_DIR = Path('sub-wheat_comparison_with_indexes')
 RES_DIR.mkdir(exist_ok=True)
 
 CLASSES_DICT = {
-    **POTATO_OLD,
-    **POTATO_NEW,
+    # **POTATO_OLD,
+    # **POTATO_NEW,
 
-    # **WHEAT_1,
-    # **WHEAT_2,
-    # **WHEAT_3
+    **WHEAT_1,
+    **WHEAT_2,
+    **WHEAT_3
 }
 
-MAX_FILES_IN_DIR = 50
+MAX_FILES_IN_DIR = 100
 
 
 def draw_klebs_np(ax, snapshot: np.ndarray, title: str):
@@ -49,7 +50,7 @@ def parse_classes(classes_dict: Dict[str, List[str]], max_files_in_dir: int) -> 
                     delimiter=','
                 )
                 features.append(
-                    SnapshotMeta(name=file, all_data=all_data)
+                    SnapshotMeta(dir_path=dir_path, name=file, all_data=all_data)
                 )
     return classes_features
 
@@ -121,16 +122,42 @@ def main() -> pd.DataFrame:
     return features_df
 
 
+def get_statistics_grouped_by_key_df(features_df: pd.DataFrame, group_key: str) -> pd.DataFrame:
+    statistics_list = []
+    for group_val in features_df[group_key].unique():
+        class_df = features_df[features_df[group_key] == group_val]
+        curr_statistics = [
+            {
+                'group': group_val,
+                'feature': feature,
+                'mean': class_df[feature].mean(),
+                'std': class_df[feature].std()
+            }
+            for feature in class_df.keys() if is_numeric_dtype(features_df[feature])
+        ]
+
+        statistics_list.extend(curr_statistics)
+
+    return pd.DataFrame(statistics_list)
+
+
 if __name__ == '__main__':
     features_df = main()
 
-    features_corr = features_df[[key for key in features_df.keys()]].corr()
+    features_df.to_csv(f"{RES_DIR}/features.csv", index=False)
+    # features_df = pd.read_csv(f"{RES_DIR}/features.csv")
+
+
+    stat_df = get_statistics_grouped_by_key_df(features_df=features_df, group_key='class')
+    # stat_df[stat_df['feature'] == 'hNDVI']
+
+    features_corr = features_df[[key for key in features_df.keys()]].corr(numeric_only=True)
 
     features_by_classes = {class_name: features_df[features_df['class'] == class_name]
                            for class_name in features_df['class'].unique()}
 
     features_corr_by_classes = {
-        class_name: class_df[[key for key in class_df.keys()]].corr()
+        class_name: class_df[[key for key in class_df.keys()]].corr(numeric_only=True)
         for class_name, class_df in features_by_classes.items()
     }
 
@@ -150,7 +177,7 @@ if __name__ == '__main__':
         ],
         y_key='class_generalized',
         method_name='lr',
-        clf_args=dict(max_iter=1e3)
+        clf_args=dict(max_iter=1e3),
         # method_name='svc',
         # clf_args=dict(kernel='rbf', C=3.),
         # dec_analyze=True,
