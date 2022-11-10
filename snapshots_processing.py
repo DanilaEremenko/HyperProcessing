@@ -273,7 +273,8 @@ BANDS_DICT = {
 
 
 class SnapshotMeta:
-    def __init__(self, name: str, all_data: np.ndarray):
+    def __init__(self, dir_path: str, name: str, all_data: np.ndarray):
+        self.dir = dir_path
         self.name = name
         self.bands: Dict[str, BandData] = {
             band_name: BandData(band_range=band_range, all_data=all_data)
@@ -310,7 +311,7 @@ class SnapshotMeta:
         }
 
     def get_sep_band_features(self):
-        features_dict = {'name': self.name}
+        features_dict = {'dir': self.dir, 'name': self.name}
 
         for band_name, band_data in self.bands.items():
             # cast for ide
