@@ -193,11 +193,13 @@ def draw_snapshots_in_features_space(features_df: pd.DataFrame, res_dir: Path):
 
 def draw_snapshots_in_all_paired_features_space(features_df: pd.DataFrame, res_dir: Path):
     for band_name in BANDS_DICT.keys():
+        print(f"draw all paired features in {band_name}")
         features_list = [feature_name for feature_name in list(features_df.keys())
                          if band_name == feature_name.split('_')[0]]
         indexes = ['ARI', 'BGI', 'BRI', 'CAI', 'CRI', 'CRI2', 'CSI1', 'CSI2', 'CUR', 'gNDVI', 'hNDVI', 'NPCI']
 
         features_list = [*features_list, *indexes]
+        features_list = [feature for feature in features_list if feature in features_df.keys()]
 
         if len(features_list) == 0:
             continue
