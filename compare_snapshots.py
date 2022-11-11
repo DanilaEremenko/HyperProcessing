@@ -142,11 +142,10 @@ def get_statistics_grouped_by_key_df(features_df: pd.DataFrame, group_key: str) 
 
 
 if __name__ == '__main__':
-    features_df = main()
-
-    features_df.to_csv(f"{RES_DIR}/features.csv", index=False)
-    # features_df = pd.read_csv(f"{RES_DIR}/features.csv")
-
+    # features_df = main()
+    #
+    # features_df.to_csv(f"{RES_DIR}/features.csv", index=False)
+    features_df = pd.read_csv(f"{RES_DIR}/features.csv")
 
     stat_df = get_statistics_grouped_by_key_df(features_df=features_df, group_key='class')
     # stat_df[stat_df['feature'] == 'hNDVI']
@@ -163,17 +162,27 @@ if __name__ == '__main__':
 
     clf_results = clf_build(
         features_df=features_df,
+        # features_df=features_df.iloc[[i for i, name in enumerate(list(features_df['dir']))
+        #                               if int(name[-1]) in [4, 5, 6, 7]]],
+        # features_df.iloc[[i for i, name in enumerate(list(features_df['dir']))
+        #                   if '000' == name[-3:] and 'day' not in name and int(name[-5]) in [4, 5, 6, 7]]],
+        # features_df = features_df.iloc[[i for i, name in enumerate(list(features_df['dir']))
+        #                                 if 'day' in name and int(name.split('day')[1][0]) in [4, 5, 6, 7]]],
         x_keys=[
             *[
                 f"{range}_{pred}"
                 for pred in [
-                    'mean_agg_in_pixels', 'dev_agg_in_pixels', 'dev_agg_in_channels',
-                    'too_low_pxs_mean', 'too_high_pxs_mean',
+                    # 'mean_agg_in_pixels',
+                    'dev_agg_in_pixels', 'dev_agg_in_channels',
+                    # 'too_low_pxs_mean', 'too_high_pxs_mean',
                     'cl_all_het', 'cl_low_het', 'cl_high_het', 'cl_high_part', 'cl_low_part',
                 ]
                 for range in ['blue', 'cyan', 'infrared', 'green']
             ],
-            *['ARI', 'BGI', 'BRI', 'CAI', 'CRI', 'CRI2', 'CSI1', 'CSI2', 'CUR', 'gNDVI', 'hNDVI', 'NPCI']
+            *[
+                'ARI', 'BGI', 'BRI', 'CAI', 'CRI', 'CRI2', 'CSI1', 'CSI2', 'CUR', 'gNDVI', 'hNDVI',
+                # 'NPCI'
+            ]
         ],
         y_key='class_generalized',
         method_name='lr',
@@ -186,16 +195,26 @@ if __name__ == '__main__':
 
     draw_tsne(
         features_df=features_df,
+        # features_df=features_df.iloc[[i for i, name in enumerate(list(features_df['dir']))
+        #                               if int(name[-1]) in [4, 5, 6, 7]]],
+        # features_df.iloc[[i for i, name in enumerate(list(features_df['dir']))
+        #                   if '000' == name[-3:] and 'day' not in name and int(name[-5]) in [4, 5, 6, 7]]],
+        # features_df = features_df.iloc[[i for i, name in enumerate(list(features_df['dir']))
+        #                                 if 'day' in name and int(name.split('day')[1][0]) in [4, 5, 6, 7]]],
         features=[
             *[
                 f"{range}_{pred}"
                 for pred in [
-                    'mean_agg_in_pixels', 'dev_agg_in_pixels', 'dev_agg_in_channels',
-                    'too_low_pxs_mean', 'too_high_pxs_mean',
+                    # 'mean_agg_in_pixels',
+                    'dev_agg_in_pixels', 'dev_agg_in_channels',
+                    # 'too_low_pxs_mean', 'too_high_pxs_mean',
                     'cl_all_het', 'cl_low_het', 'cl_high_het', 'cl_high_part', 'cl_low_part',
                 ]
                 for range in ['blue', 'cyan', 'infrared', 'green']
             ],
-            *['ARI', 'BGI', 'BRI', 'CAI', 'CRI', 'CRI2', 'CSI1', 'CSI2', 'CUR', 'gNDVI', 'hNDVI', 'NPCI']
+            *[
+                'ARI', 'BGI', 'BRI', 'CAI', 'CRI', 'CRI2', 'CSI1', 'CSI2', 'CUR', 'gNDVI', 'hNDVI',
+                # 'NPCI'
+            ]
         ],
     )
