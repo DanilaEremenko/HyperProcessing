@@ -157,7 +157,7 @@ def draw_snapshots_in_features_space(features_df: pd.DataFrame, res_dir: Path):
 
     for band_name in BANDS_DICT.keys():
         titles_band = [f"{feature.title} in {band_name} with logreg f1(phyto) = " \
-                       f"{clf_build(features_df=features_df, x_keys=[f'{band_name}_{feature.x_key}', f'{band_name}_{feature.y_key}'], y_key='class_generalized')['f1_phyto']}"
+                       f"{clf_build(fit_df=features_df, eval_df=features_df, x_keys=[f'{band_name}_{feature.x_key}', f'{band_name}_{feature.y_key}'], y_key='class_generalized')['test_f1_phyto']}"
                        for feature in features_list]
 
         fig = make_subplots(rows=1, cols=len(features_list), subplot_titles=titles_band)

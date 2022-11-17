@@ -33,22 +33,30 @@ def clf_decision_analyze(clf, features: List[str], class_labels: List[str]):
 
 
 def clf_build(
-        features_df: pd.DataFrame,
+        fit_df: pd.DataFrame,
+        eval_df: pd.DataFrame,
         x_keys: List[str],
         y_key: str,
         method_name='lr',
         clf_args: Optional[dict] = None,
         dec_analyze=False,
-        clf_pretrained=None
+        clf_pretrained=None,
+        scaler_fit_on_all=False
 ) -> Dict[str, float]:
     clf_args = {} if clf_args is None else clf_args
 
-    x_all = features_df[x_keys]
-    y_all = features_df[y_key]
+    x_fit = fit_df[x_keys]
+    y_fit = fit_df[y_key]
 
-    scaler = preprocessing.StandardScaler().fit(x_all)
+    x_eval = eval_df[x_keys]
+    y_eval = eval_df[y_key]
 
-    x_train, x_test, y_train, y_test = train_test_split(x_all, y_all, test_size=0.33, random_state=42)
+    if scaler_fit_on_all:
+        scaler = preprocessing.StandardScaler().fit(pd.concat([x_fit, x_eval]))
+    else:
+        scaler = preprocessing.StandardScaler().fit(x_fit)
+
+    x_train, x_test, y_train, y_test = train_test_split(x_fit, y_fit, test_size=0.33, random_state=42)
 
     if clf_pretrained is None:
         if method_name == 'lr':
@@ -67,28 +75,33 @@ def clf_build(
     if dec_analyze:
         clf_decision_analyze(clf=clf[-1], features=x_keys, class_labels=['health', 'phyto'])
 
-    y_train_pred = clf.predict(x_train)
-    y_test_pred = clf.predict(x_test)
+    samples_dict = {
+        'train': {'y_true': y_train, 'y_pred': clf.predict(x_train)},
+        'test': {'y_true': y_test, 'y_pred': clf.predict(x_test)},
+    }
+    if eval_df is not None:
+        samples_dict['eval'] = {'y_true': y_eval, 'y_pred': clf.predict(x_eval)}
 
     str_to_int = lambda arr: [1 if el == 'health' else 2 for el in arr]
 
+    def get_metrics_dict(name: str, y_true: np.ndarray, y_pred: np.ndarray) -> dict:
+        return {
+            f'{name}_accuracy': metrics.accuracy_score(y_true=y_true, y_pred=y_pred).__round__(2),
+            f'{name}_auc': metrics.auc(*metrics.roc_curve(
+                y_score=str_to_int(y_pred), y_true=str_to_int(y_true), pos_label=2)[:2]).__round__(2),
+            f'{name}_f1_health': metrics.f1_score(y_true=y_true, y_pred=y_pred, pos_label="health").round(2),
+            f'{name}_f1_phyto': metrics.f1_score(y_true=y_true, y_pred=y_pred, pos_label="phyto").round(2),
+            f'{name}_confusion': metrics.confusion_matrix(y_true=y_true, y_pred=y_pred, labels=["health", "phyto"]),
+        }
+
     return {
-        'accuracy': metrics.accuracy_score(y_true=y_test, y_pred=clf.predict(x_test)).round(2),
-
-        'f1_health': metrics.f1_score(y_true=y_test, y_pred=clf.predict(x_test), pos_label="health").round(2),
-        'f1_phyto': metrics.f1_score(y_true=y_test, y_pred=clf.predict(x_test), pos_label="phyto").round(2),
-
-        'train_confusion': metrics.confusion_matrix(y_pred=y_train_pred, y_true=y_train, labels=["health", "phyto"]),
-        'train_auc': metrics.auc(
-            *metrics.roc_curve(y_score=str_to_int(y_train_pred), y_true=str_to_int(y_train), pos_label=2)[:2]
-        ).__round__(2),
-
-        'test_confusion': metrics.confusion_matrix(y_pred=y_test_pred, y_true=y_test, labels=["health", "phyto"]),
-        'test_auc': metrics.auc(
-            *metrics.roc_curve(y_score=str_to_int(y_test_pred), y_true=str_to_int(y_test), pos_label=2)[:2]
-        ).__round__(2),
+        **{
+            metric_key: metric_val
+            for ds_name, ds_dict in samples_dict.items()
+            for metric_key, metric_val in get_metrics_dict(name=ds_name, **ds_dict).items()
+        },
         'cross_val': cross_val_score(
-            clf, x_all, y_all,
+            clf, x_fit, y_fit,
             cv=StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
         ).round(2),
         'clf': clf

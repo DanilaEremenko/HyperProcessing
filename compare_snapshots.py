@@ -166,8 +166,9 @@ if __name__ == '__main__':
         for class_name, class_df in features_by_classes.items()
     }
 
-    clf_results = clf_build(
-        features_df=features_df,
+    clf_build(
+        fit_df=features_df.iloc[0:800],
+        eval_df=features_df.iloc[800:1600],
         # features_df=features_df.iloc[[i for i, name in enumerate(list(features_df['dir']))
         #                               if int(name[-1]) in [4, 5, 6, 7]]],
         # features_df.iloc[[i for i, name in enumerate(list(features_df['dir']))
@@ -179,14 +180,14 @@ if __name__ == '__main__':
                 f"{range}_{pred}"
                 for pred in [
                     # 'mean_agg_in_pixels',
-                    'dev_agg_in_pixels', 'dev_agg_in_channels',
+                    # 'dev_agg_in_pixels', 'dev_agg_in_channels',
                     # 'too_low_pxs_mean', 'too_high_pxs_mean',
-                    'cl_all_het', 'cl_low_het', 'cl_high_het', 'cl_high_part', 'cl_low_part',
+                    # 'cl_all_het', 'cl_low_het', 'cl_high_het', 'cl_high_part', 'cl_low_part',
                 ]
-                for range in ['blue', 'cyan', 'infrared', 'green']
+                for range in BANDS_DICT.keys()
             ],
             *[
-                'ARI', 'BGI', 'BRI', 'CAI', 'CRI', 'CRI2', 'CSI1', 'CSI2', 'CUR', 'gNDVI', 'hNDVI',
+                'ARI', 'BGI', 'BRI', 'CAI', 'CRI1', 'CRI2', 'CSI1', 'CSI2', 'CUR', 'gNDVI', 'hNDVI',
                 # 'NPCI'
             ]
         ],
@@ -196,7 +197,8 @@ if __name__ == '__main__':
         # method_name='svc',
         # clf_args=dict(kernel='rbf', C=3.),
         # dec_analyze=True,
-        # clf_pretrained=clf_results['clf']
+        # clf_pretrained=clf_results['clf'],
+        scaler_fit_on_all=True
     )
 
     draw_tsne(
@@ -219,7 +221,7 @@ if __name__ == '__main__':
                 for range in ['blue', 'cyan', 'infrared', 'green']
             ],
             *[
-                'ARI', 'BGI', 'BRI', 'CAI', 'CRI', 'CRI2', 'CSI1', 'CSI2', 'CUR', 'gNDVI', 'hNDVI',
+                'ARI', 'BGI', 'BRI', 'CAI', 'CRI1', 'CRI2', 'CSI1', 'CSI2', 'CUR', 'gNDVI', 'hNDVI',
                 # 'NPCI'
             ]
         ],
