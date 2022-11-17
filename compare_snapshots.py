@@ -13,16 +13,16 @@ from drawing import draw_hp_glasses, draw_snapshots_as_reflectance, draw_snapsho
 from experiments import *
 from snapshots_processing import SnapshotMeta, BandData, BANDS_DICT
 
-RES_DIR = Path('sub-wheat_comparison_with_indexes')
+RES_DIR = Path('sub-wheat_comparison_with_indexes_filtered')
 RES_DIR.mkdir(exist_ok=True)
 
 CLASSES_DICT = {
     # **POTATO_OLD,
     # **POTATO_NEW,
 
-    **WHEAT_1,
-    **WHEAT_2,
-    **WHEAT_3
+    # **WHEAT_ALL,
+
+    **WHEAT_ALL_FILTERED
 }
 
 MAX_FILES_IN_DIR = 100
@@ -45,13 +45,19 @@ def parse_classes(classes_dict: Dict[str, List[str]], max_files_in_dir: int) -> 
             print(f"parsing snapshots from {dir_path}")
             files = list(os.listdir(dir_path))[:max_files_in_dir]
             for file_id, file in enumerate(files):
+                print(f"  parsing file={file}")
                 all_data = genfromtxt(
                     f'{dir_path}/{file}',
                     delimiter=','
                 )
-                features.append(
-                    SnapshotMeta(dir_path=dir_path, name=file, all_data=all_data)
-                )
+
+                if len(all_data) < 20:
+                    print(f"  {file} small leaf, scip..")
+                else:
+                    features.append(
+                        SnapshotMeta(dir_path=dir_path, name=file, all_data=all_data)
+                    )
+
     return classes_features
 
 

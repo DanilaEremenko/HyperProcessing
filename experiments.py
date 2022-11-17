@@ -32,7 +32,7 @@ POTATO_NEW = {
     ]
 }
 
-WHEAT_1 = {
+WHEAT_ALL = {
     'health1': [
         f'csv/sep-wheat-1/wheat-control/wheat-control-{i}'
         for i in range(4, 10, 1)
@@ -40,10 +40,8 @@ WHEAT_1 = {
     'puccinia phyto1': [
         f'csv/sep-wheat-1/wheat-puccinia/wheat-puccinia-{i}'
         for i in range(4, 10, 1)
-    ]
-}
+    ],
 
-WHEAT_2 = {
     'health2': [
         f'csv/sep-wheat-2/wheat-control/wheat-control-{i}_000'
         for i in range(4, 10, 1)
@@ -51,10 +49,8 @@ WHEAT_2 = {
     'puccinia phyto2': [
         f'csv/sep-wheat-2/wheat-puccinia/wheat-puccinia-{i}_000'
         for i in range(4, 10, 1)
-    ]
-}
+    ],
 
-WHEAT_3 = {
     'health3': [
         f'csv/sep-wheat-3/wheat-control/wheat_day{i}_control_000'
         for i in range(4, 10, 1)
@@ -62,5 +58,34 @@ WHEAT_3 = {
     'puccinia phyto3': [
         f'csv/sep-wheat-3/wheat-puccinia/wheat_day{i}_experiment_000'
         for i in range(4, 10, 1)
+    ]
+}
+
+WHEAT_ALL_FILTERED = {
+    'health1': [
+        f'csv/sep-wheat-1/wheat-control/wheat-control-{i}'
+        for i in [0, 1, 2, 3]
+    ],
+    'puccinia phyto1': [
+        f'csv/sep-wheat-1/wheat-puccinia/wheat-puccinia-{i}'
+        for i in [4, 5, 6, 7]
+    ],
+
+    'health2': [
+        f'csv/sep-wheat-2/wheat-control/wheat-control-{i}_000'
+        for i in [0, 2, 3, 4]
+    ],
+    'puccinia phyto2': [
+        f'csv/sep-wheat-2/wheat-puccinia/wheat-puccinia-{i}_000'
+        for i in [4, 5, 6, 7]
+    ],
+
+    'health3': [
+        f'csv/sep-wheat-3/wheat-control/wheat_day{i}_control_000'
+        for i in [4, 5, 6, 7]
+    ],
+    'puccinia phyto3': [
+        f'csv/sep-wheat-3/wheat-puccinia/wheat_day{i}_experiment_000'
+        for i in [4, 5, 6, 7]
     ]
 }
