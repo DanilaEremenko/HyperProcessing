@@ -46,7 +46,8 @@ def calculate_dev_in_pixels(arr, mode='left') -> np.ndarray:
 
     if residuals.min() == residuals.max() == 0:
         if residuals.shape[1] != 1:
-            raise Exception("All channels have same value for pixel")
+            # raise Exception("All channels have same value for pixel")
+            return dev_arr
     elif mode == 'left':
         for pix_id in range(pixels_num):
             res_in_ch = residuals[pix_id]
@@ -242,12 +243,12 @@ class BandData:
         # band_data = self.get_filtered_interval_pixels(band_data, mode='crop_right', part=0.2)
 
         self.mean_in_ch_by_px = band_data.mean(axis=0)
-        self.left_dev_in_chs_by_px = band_data.mean(axis=0) + calculate_dev_in_channels(band_data, mode='left')
-        self.right_dev_in_chs_by_px = band_data.mean(axis=0) + calculate_dev_in_channels(band_data, mode='right')
+        # self.left_dev_in_chs_by_px = band_data.mean(axis=0) + calculate_dev_in_channels(band_data, mode='left')
+        # self.right_dev_in_chs_by_px = band_data.mean(axis=0) + calculate_dev_in_channels(band_data, mode='right')
 
         self.mean_in_pxs_by_ch = band_data.mean(axis=1)
-        self.left_dev_in_pxs_by_ch = band_data.mean(axis=1) + calculate_dev_in_pixels(band_data, mode='left')
-        self.right_dev_in_pxs_by_ch = band_data.mean(axis=1) + calculate_dev_in_pixels(band_data, mode='right')
+        # self.left_dev_in_pxs_by_ch = band_data.mean(axis=1) + calculate_dev_in_pixels(band_data, mode='left')
+        # self.right_dev_in_pxs_by_ch = band_data.mean(axis=1) + calculate_dev_in_pixels(band_data, mode='right')
 
         self.band_data = band_data
 
@@ -256,18 +257,25 @@ class BandData:
         self.cl_features = self.get_clusters_features(X=np.concatenate((self.band_data, self.coordinates), axis=1))
 
 
+WLS = np.arange(450, 871, 4)
+
 BANDS_DICT = {
+    **{
+        f'{wl1}-{wl2}': BandRangeSet(wls=[wl1, wl2])
+        for i, (wl1, wl2) in enumerate(zip(WLS, WLS[1:]))
+        if i % 2 == 0
+    },
+
     # 'blue_set': BandRangeSet(wls=[450]),
 
-    'blue': BandRangeBounds(440, 485),
-    'cyan': BandRangeBounds(485, 500),
-    'green': BandRangeBounds(500, 565),
-    'yellow': BandRangeBounds(565, 590),
-    'orange': BandRangeBounds(590, 625),
-    'red': BandRangeBounds(625, 780),
-    'visible': BandRangeBounds(440, 780),
-    'infrared': BandRangeBounds(780, 1000),
-
+    # 'blue': BandRangeBounds(440, 485),
+    # 'cyan': BandRangeBounds(485, 500),
+    # 'green': BandRangeBounds(500, 565),
+    # 'yellow': BandRangeBounds(565, 590),
+    # 'orange': BandRangeBounds(590, 625),
+    # 'red': BandRangeBounds(625, 780),
+    # 'visible': BandRangeBounds(440, 780),
+    # 'infrared': BandRangeBounds(780, 1000),
     'all': BandRangeBounds(400, 1000),
 }
 
@@ -293,20 +301,20 @@ class SnapshotMeta:
 
         return {
 
-            'ARI': 1 / R(550) - 1 / R(702),
-            'BGI': R(450) / R(550),
-            'BRI': R(450) / R(690),
-            'CAI': R(450) / R(690),
+            'ARI': 1 / R(550) - 1 / R(702),  # green right & red middle
+            'BGI': R(450) / R(550),  # blue left & green right
+            'BRI': R(450) / R(690),  # blue left & red middle
+            'CAI': R(450) / R(690),  # blue left & red middle
 
-            'CRI': 1 / R(510) - 1 / R(550),
-            'CRI2': 1 / R(510) - 1 / R(702),
+            'CRI1': 1 / R(510) - 1 / R(550),  # green left & green right
+            'CRI2': 1 / R(510) - 1 / R(702),  # green left & red middle
 
-            'CSI1': R(694) / R(450),
-            'CSI2': R(694) / R(762),
+            'CSI1': R(694) / R(450),  # red middle & blue left
+            'CSI2': R(694) / R(762),  # red middle & red right
 
-            'CUR': R(674) * R(550) / R(682) ** 2,
-            'gNDVI': (R(750) - R(550)) / (R(750) + R(550)),
-            'hNDVI': (R(826) - R(666)) / (R(826) + R(666)),
+            'CUR': R(674) * R(550) / R(682) ** 2,  # red middle & green right
+            'gNDVI': (R(750) - R(550)) / (R(750) + R(550)),  # red right & green right
+            'hNDVI': (R(826) - R(666)) / (R(826) + R(666)),  # infr left & red left
             'NPCI': (R(682) - R(450)) / R(682) + R(450)
         }
 

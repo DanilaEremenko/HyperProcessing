@@ -13,7 +13,7 @@ from drawing import draw_hp_glasses, draw_snapshots_as_reflectance, draw_snapsho
 from experiments import *
 from snapshots_processing import SnapshotMeta, BandData, BANDS_DICT
 
-RES_DIR = Path('sub-wheat_comparison_with_indexes_filtered')
+RES_DIR = Path('sub-wheat_comparison_with_indexes_filtered_wl_imp_analyze')
 RES_DIR.mkdir(exist_ok=True)
 
 CLASSES_DICT = {
