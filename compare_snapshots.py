@@ -167,8 +167,8 @@ if __name__ == '__main__':
     }
 
     clf_build(
-        fit_df=features_df.iloc[0:800],
-        eval_df=features_df.iloc[800:1600],
+        fit_df=pd.concat([features_df.iloc[800:1000], features_df.iloc[1300:1500]]),
+        eval_df=pd.concat([features_df.iloc[1600:1800], features_df.iloc[2000:2200]]),
         # features_df=features_df.iloc[[i for i, name in enumerate(list(features_df['dir']))
         #                               if int(name[-1]) in [4, 5, 6, 7]]],
         # features_df.iloc[[i for i, name in enumerate(list(features_df['dir']))
@@ -198,7 +198,7 @@ if __name__ == '__main__':
         # clf_args=dict(kernel='rbf', C=3.),
         # dec_analyze=True,
         # clf_pretrained=clf_results['clf'],
-        scaler_fit_on_all=True
+        scaler_fit_on_all=False
     )
 
     draw_tsne(
