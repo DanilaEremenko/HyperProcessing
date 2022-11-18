@@ -217,6 +217,12 @@ class BandData:
 
         return self._padded_data
 
+    @property
+    def cl_features(self):
+        if self._cl_features is None:
+            self._cl_features = self.get_clusters_features(X=np.concatenate((self.band_data, self.coordinates), axis=1))
+        return self._cl_features
+
     def __init__(self, band_range: BandRange, all_data: np.ndarray):
         # separate coordinates and snapshot data
         self.coordinates = all_data[1:, :2].copy()
@@ -252,18 +258,22 @@ class BandData:
 
         self.band_data = band_data
 
-        self._padded_data = None  # let's go lazy
-
-        self.cl_features = self.get_clusters_features(X=np.concatenate((self.band_data, self.coordinates), axis=1))
+        # let's go lazy
+        self._padded_data = None
+        self._cl_features = None
 
 
 WLS = np.arange(450, 871, 4)
 
 BANDS_DICT = {
+    # **{
+    #     f'{wl1}-{wl2}': BandRangeSet(wls=[wl1, wl2])
+    #     for i, (wl1, wl2) in enumerate(zip(WLS, WLS[1:]))
+    #     if i % 2 == 0
+    # },
     **{
-        f'{wl1}-{wl2}': BandRangeSet(wls=[wl1, wl2])
-        for i, (wl1, wl2) in enumerate(zip(WLS, WLS[1:]))
-        if i % 2 == 0
+        f'{wl}': BandRangeSet(wls=[wl])
+        for i, wl in enumerate(WLS)
     },
 
     # 'blue_set': BandRangeSet(wls=[450]),
@@ -327,22 +337,22 @@ class SnapshotMeta:
 
             curr_band_features = {
                 'mean_agg_in_pixels': band_data.mean_in_pxs_by_ch.mean(),
-                'dev_agg_in_pixels': band_data.mean_dev_in_px,
-                'dev_agg_in_channels': band_data.mean_dev_in_ch,
+                # 'dev_agg_in_pixels': band_data.mean_dev_in_px,
+                # 'dev_agg_in_channels': band_data.mean_dev_in_ch,
+                #
+                # 'too_low_pxs_mean': band_data.get_too_low_pxs().mean(),
+                # 'too_high_pxs_mean': band_data.get_too_high_pxs().mean(),
 
-                'too_low_pxs_mean': band_data.get_too_low_pxs().mean(),
-                'too_high_pxs_mean': band_data.get_too_high_pxs().mean(),
-
-                'cl_all_het': band_data.cl_features.all_het,
-
-                'cl_low_mean': band_data.cl_features.c_low.mean,
-                'cl_high_mean': band_data.cl_features.c_high.mean,
-
-                'cl_low_het': band_data.cl_features.c_low.het,
-                'cl_high_het': band_data.cl_features.c_high.het,
-
-                'cl_low_part': band_data.cl_features.c_low.part,
-                'cl_high_part': band_data.cl_features.c_high.part
+                # 'cl_all_het': band_data.cl_features.all_het,
+                #
+                # 'cl_low_mean': band_data.cl_features.c_low.mean,
+                # 'cl_high_mean': band_data.cl_features.c_high.mean,
+                #
+                # 'cl_low_het': band_data.cl_features.c_low.het,
+                # 'cl_high_het': band_data.cl_features.c_high.het,
+                #
+                # 'cl_low_part': band_data.cl_features.c_low.part,
+                # 'cl_high_part': band_data.cl_features.c_high.part
             }
 
             generate_func_map = {
