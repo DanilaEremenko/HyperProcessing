@@ -1,6 +1,7 @@
 from pathlib import Path
 from typing import List, Dict, Optional
 
+import matplotlib
 import pandas as pd
 from plotly.subplots import make_subplots
 import plotly.graph_objs as go
@@ -9,6 +10,10 @@ from sklearn.manifold import TSNE
 from clf import clf_build
 from snapshots_processing import SnapshotMeta, BANDS_DICT
 import matplotlib.pyplot as plt
+
+font = {'family': 'Times New Roman',
+        'size': 14}
+matplotlib.rc('font', **font)
 
 
 def draw_snapshots_as_reflectance(classes_dict: Dict[str, List[SnapshotMeta]], res_path: str,
@@ -116,6 +121,9 @@ class Feature:
 CLASS_COLORS = ['#4FD51D', '#FF9999', '#2ED30B', '#DD7777', '#41C426', '#D07272']
 
 
+# CLASS_COLORS = ['#4FD51D', '#FF9999', '#4FD51D', '#FF9999']
+
+
 def draw_snapshots_in_features_space(features_df: pd.DataFrame, res_dir: Path):
     features_list: List[Feature] = [
         # Feature(
@@ -191,41 +199,77 @@ def draw_snapshots_in_features_space(features_df: pd.DataFrame, res_dir: Path):
         fig.write_html(f"{res_dir}/{band_name}/features_space_in_band={band_name}.html")
 
 
-def draw_snapshots_in_all_paired_features_space(features_df: pd.DataFrame, res_dir: Path):
-    for band_name in BANDS_DICT.keys():
-        print(f"draw all paired features in {band_name}")
-        features_list = [feature_name for feature_name in list(features_df.keys())
-                         if band_name == feature_name.split('_')[0]]
-        indexes = ['ARI', 'BGI', 'BRI', 'CAI', 'CRI', 'CRI2', 'CSI1', 'CSI2', 'CUR', 'gNDVI', 'hNDVI', 'NPCI']
+RENAME_DICT = {
+    'all_pixels_mean': 'MEAN',
+    'all_pixels_std': 'DEV',
 
-        features_list = [*features_list, *indexes]
-        features_list = [feature for feature in features_list if feature in features_df.keys()]
+    'too_low_pxs_mean': 'LOW MEAN',
+    'too_low_pxs_std': 'LOW STD',
 
-        if len(features_list) == 0:
-            continue
+    'too_high_pxs_mean': 'HIGH MEAN',
+    'too_high_pxs_std': 'HIGH STD',
+}
 
-        each_fig_size = 2.5
 
-        fig, axes = plt.subplots(
-            nrows=len(features_list), ncols=len(features_list),
-            figsize=(each_fig_size * len(features_list), each_fig_size * len(features_list))
-        )
-        for class_name, color in zip(list(features_df['class'].unique()), CLASS_COLORS):
-            for j, feature_x in enumerate(features_list):
-                for i, feature_y in enumerate(features_list):
-                    axes[j][i].scatter(
-                        x=features_df[features_df['class'] == class_name][feature_x],
-                        y=features_df[features_df['class'] == class_name][feature_y],
-                        color=color
-                    )
+def rename_axis(name: str) -> str:
+    split = name.split('_')
+    ch_name = split[0]
+    func_name = RENAME_DICT['_'.join(split[1:])]
+    return f"{func_name}({ch_name})".upper()
+
+
+def draw_snapshots_in_paired_features_space(features_df: pd.DataFrame, features_list: List[str], res_dir: Path,
+                                            fname: str):
+    each_fig_size = 2.5
+
+    fig, axes = plt.subplots(
+        nrows=len(features_list), ncols=len(features_list),
+        figsize=(each_fig_size * len(features_list), each_fig_size * len(features_list))
+    )
+    for class_name, color in zip(list(features_df['class'].unique()), CLASS_COLORS):
+        for j, feature_x in enumerate(features_list):
+            for i, feature_y in enumerate(features_list):
+                axes[j][i].scatter(
+                    x=features_df[features_df['class'] == class_name][feature_x],
+                    y=features_df[features_df['class'] == class_name][feature_y],
+                    color=color
+                )
+                if 'BGI' not in features_list:  # great topic bone
+                    axes[j][i].set_ylabel(rename_axis(feature_y))
+                    axes[j][i].set_xlabel(rename_axis(feature_x))
+                else:
                     axes[j][i].set_ylabel(feature_y)
                     axes[j][i].set_xlabel(feature_x)
 
-        fig.tight_layout()
-        fig.savefig(f"{res_dir}/{band_name}/features_space_pairs_in_band={band_name}.png")
+    fig.tight_layout()
+    fig.savefig(f"{res_dir}/{fname}")
 
 
-def draw_tsne(features_df: pd.DataFrame, features: List[str], res_dir: Optional[str] = None):
+def draw_snapshots_in_all_paired_features_space(features_df: pd.DataFrame, res_dir: Path):
+    for band_name in BANDS_DICT.keys():
+        print(f"draw all paired features in {band_name}")
+
+        features_list = [feature_name for feature_name in list(features_df.keys())
+                         if band_name == feature_name.split('_')[0]]
+
+        features_list = [feature for feature in features_list if feature in features_df.keys()]
+
+        if len(features_list) == 0:
+            break
+
+        draw_snapshots_in_paired_features_space(
+            features_df=features_df, features_list=features_list,
+            res_dir=res_dir.joinpath(band_name), fname=f'features_space_pairs_in_band={band_name}.png'
+        )
+
+    indexes = ['ARI', 'BGI', 'BRI', 'CRI1', 'CRI2', 'CSI1', 'CSI2', 'CUR', 'gNDVI', 'hNDVI', 'NPCI']
+    draw_snapshots_in_paired_features_space(
+        features_df=features_df, features_list=indexes,
+        res_dir=res_dir, fname='features_space_pairs_indexes.png'
+    )
+
+
+def draw_tsne_plotly(features_df: pd.DataFrame, features: List[str], save_pref: Optional[str] = None):
     tsne_arr = TSNE().fit_transform(features_df[features])
 
     fig = go.Figure()
@@ -251,10 +295,37 @@ def draw_tsne(features_df: pd.DataFrame, features: List[str], res_dir: Optional[
             )
         )
 
-    if res_dir is None:
+    fig.update_layout(height=800, width=1000, title_text="t-SNE representation")
+
+    if save_pref is None:
         fig.show()
     else:
-        fig.write_html(f"{res_dir}/features_in_tsne.html")
+        fig.write_html(f"{save_pref}.html")
+
+
+def draw_tsne_matplot(features_df: pd.DataFrame, features: List[str], save_pref: Optional[str] = None):
+    tsne_arr = TSNE().fit_transform(features_df[features])
+
+    plt.rcParams["figure.figsize"] = (10, 10)
+
+    features_df = features_df.reset_index(inplace=False)
+    for class_name, color in zip(list(features_df['class'].unique()), CLASS_COLORS):
+        class_rows = features_df[features_df['class'] == class_name]
+        plt.scatter(
+            tsne_arr[class_rows.index, 0],
+            tsne_arr[class_rows.index, 1],
+            label=class_name,
+            color=color,
+            edgecolor="black",
+            s=200
+        )
+    plt.legend(loc="upper right")
+
+    if save_pref is None:
+        plt.show()
+    else:
+        plt.savefig(f"{save_pref}.png", dpi=100)
+        plt.clf()
 
 
 def draw_hp_glasses(
@@ -263,6 +334,7 @@ def draw_hp_glasses(
         bname: str,
         res_path: str
 ):
+    print(f'drawing hp_glasses {res_path}')
     assert len(all_classes) == len(classes_names)
 
     all_wl_lists = [len(snapshot.bands[bname].wave_lengths)
@@ -300,9 +372,9 @@ def draw_hp_glasses(
                         xref="x",
                         yref="y",
                         text=f"{snapshot.name}/"
-                             f"[mean_pixel={snapshot.bands[bname].mean_in_pxs_by_ch.mean().round(2)}, "
-                             f"mean_dev={snapshot.bands[bname].mean_dev_in_px.round(2)}, "
-                             f"{snapshot.bands[bname].cl_features}]"
+                        # f"[mean_pixel={snapshot.bands[bname].mean_in_pxs_by_ch.mean().round(2)}, "
+                        # f"mean_dev={snapshot.bands[bname].mean_dev_in_px.round(2)}, "
+                        # f"{snapshot.bands[bname].cl_features}]"
                         # f"[lowest_avg={snapshot.bands[bname].get_too_low_pxs().mean().round(2)}, "
                         # f"highest_avg={snapshot.bands[bname].get_too_high_pxs().mean().round(2)}]"
                         ,
@@ -356,3 +428,62 @@ def draw_hp_glasses(
     )
 
     fig.write_html(res_path)
+
+
+def draw_n_vectors_matplot(
+        x_list: List[List[float]],
+        y_list: List[List[float]],
+        meta_list: List[List[float]],
+        labels: List[str],
+        x_label: str,
+        y_label: str,
+        title: str,
+        save_pref=None
+):
+    for x_arr, y_arr, label in zip(x_list, y_list, labels):
+        plt.plot(x_arr, y_arr, label=label)
+        plt.xlabel(x_label)
+        plt.ylabel(y_label)
+        plt.legend(loc="lower right")
+        plt.title(title)
+
+    plt.tight_layout()
+
+    if save_pref is None:
+        plt.show()
+    else:
+        plt.savefig(f"{save_pref}.png", dpi=100)
+        plt.clf()
+
+
+def draw_n_vectors_plotly(
+        x_list: List[List[float]],
+        y_list: List[List[float]],
+        meta_list: List[List[float]],
+        labels: List[str],
+        x_label: str,
+        y_label: str,
+        title: str,
+        save_pref=None
+):
+    fig = go.Figure()
+
+    for x_arr, y_arr, meta_arr, label in zip(x_list, y_list, meta_list, labels):
+        fig.add_trace(
+            go.Scatter(
+                name=label,
+                legendgroup=label,
+                text=meta_arr,
+                x=x_arr,
+                y=y_arr,
+            ),
+        )
+
+        fig.update_xaxes(title_font_family=x_label)
+        fig.update_yaxes(title_font_family=y_label)
+        fig.update_layout(height=800, width=1000, title_text=title)
+
+        if save_pref is None:
+            fig.show()
+        else:
+            fig.write_html(f"{save_pref}.html")
