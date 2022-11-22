@@ -1,6 +1,20 @@
+from pathlib import Path
+from typing import List
+
 import pandas as pd
 
+from clf import clf_build
+from compare_snapshots import RES_DIR
+import matplotlib.pyplot as plt
+import plotly.graph_objs as go
 
+from drawing import draw_n_vectors_matplot, draw_n_vectors_plotly
+from snapshots_processing import WLS
+
+
+########################################################################################################################
+# --------------------------------- get and draw importance vectors from experiments -----------------------------------
+########################################################################################################################
 def read_imps(path: str) -> pd.DataFrame:
     with open(path) as fp:
         imp_str = fp.read()
@@ -11,9 +25,15 @@ def read_imps(path: str) -> pd.DataFrame:
         return pd.DataFrame(imp_dict).sort_values(['wl'])
 
 
+CH_STATISTICS = ['all_pixels_mean', 'all_pixels_std']
+IMP_DIR = Path('topic/imp_based_on_mean_and_std')
+IMPS1 = f'{IMP_DIR}/imp1'
+IMPS2 = f'{IMP_DIR}/imp2'
+
+
 def get_all_imps_df() -> pd.DataFrame:
-    imps_df1 = read_imps('sub-wheat_comparison_with_indexes_filtered_each_wl_imp_analyze_cropped/imp1')
-    imps_df2 = read_imps('sub-wheat_comparison_with_indexes_filtered_each_wl_imp_analyze_cropped/imp2')
+    imps_df1 = read_imps(IMPS1)
+    imps_df2 = read_imps(IMPS2)
 
     all_df = pd.merge(left=imps_df1, right=imps_df2, left_on='wl', right_on='wl')
 
@@ -29,36 +49,7 @@ def get_all_imps_df() -> pd.DataFrame:
 ALL_DF = get_all_imps_df()
 
 
-def get_imps_df_by_window():
-    window_size = 5
-    wl_sort_df = ALL_DF.sort_values('wl', ascending=False)
-
-    windows_imps_list = []
-    for start in range(0, len(wl_sort_df) - window_size + 1, 1):
-        curr_window = ALL_DF.iloc[start:start + window_size]
-        windows_imps_list.append(
-            {
-                'wls': list(curr_window['wl']),
-                'corr': curr_window.corr().iloc[1][2]
-            }
-        )
-    windows_imps_df = pd.DataFrame(windows_imps_list).sort_values('corr', ascending=False)
-    return windows_imps_df
-
-
-def get_imps_df_by_residuals():
-    df = ALL_DF.copy()
-    df['mae'] = (df['importance exp 2'] - df['importance exp 3']).abs()
-    return df[['wl', 'mae']].sort_values('mae', ascending=False)
-
-
-WINDOWS_IMPS = get_imps_df_by_window()
-RESIDUALS_IMPS = get_imps_df_by_residuals()
-
-
 def _draw_imps_plotly():
-    import plotly.graph_objs as go
-
     fig = go.Figure()
 
     for key in ['importance exp 2', 'importance exp 3']:
@@ -78,20 +69,129 @@ def _draw_imps_plotly():
         )
     )
     fig.show()
-    fig.write_html('band_imps.html')
+    fig.write_html(f'{IMP_DIR}/band_imps.html')
 
 
 def _draw_imps_matplotlib():
-    import matplotlib.pyplot as plt
-
     plt.rcParams["figure.figsize"] = (9, 6)
 
     for key in ['importance exp 2', 'importance exp 3']:
         plt.plot(ALL_DF['wl'], ALL_DF[key], label=key)
 
     plt.legend(loc="upper right")
-    plt.savefig("band_imps.png", dpi=100)
+    plt.savefig(f"{IMP_DIR}/band_imps.png", dpi=100)
     plt.clf()
 
-# _draw_imps_matplotlib()
-# _draw_imps_plotly()
+
+_draw_imps_matplotlib()
+_draw_imps_plotly()
+
+
+########################################################################################################################
+# --------------------------------- get wl orders based on different importance sorting --------------------------------
+########################################################################################################################
+def get_imps_df_by_window():
+    window_size = 5
+    wl_sort_df = ALL_DF.sort_values('wl', ascending=False)
+
+    windows_imps_list = []
+    for start in range(0, len(wl_sort_df) - window_size + 1, 1):
+        curr_window = ALL_DF.iloc[start:start + window_size]
+        windows_imps_list.append(
+            {
+                'wls': list(curr_window['wl']),
+                'corr': curr_window.corr().iloc[1][2]
+            }
+        )
+    windows_imps_df = pd.DataFrame(windows_imps_list).sort_values('corr', ascending=False)
+    return windows_imps_df
+
+
+def get_imps_df_by_residuals() -> pd.DataFrame:
+    df = ALL_DF.copy()
+    df['mae'] = (df['importance exp 2'] - df['importance exp 3']).abs()
+    return df[['wl', 'mae']].sort_values('mae', ascending=False)
+
+
+def get_imps_df_by_mean() -> pd.DataFrame:
+    df = ALL_DF.copy()
+    df['mean'] = (df['importance exp 2'] + df['importance exp 3']) / 2
+    return df[['wl', 'mean']].sort_values('mean', ascending=True)
+
+
+WINDOWS_IMPS = get_imps_df_by_window()
+RESIDUALS_ASCENDING_IMPS = get_imps_df_by_residuals()
+MEAN_DESCENDING_IMPS = get_imps_df_by_mean()
+
+########################################################################################################################
+# --------------------------------- check minimal sufficient subset of channels ----------------------------------------
+########################################################################################################################
+FEATURES_DF = pd.read_csv(f"{RES_DIR}/features.csv")
+
+
+def _clf_build(fit_df: pd.DataFrame, eval_df: pd.DataFrame, x_keys: List[str]):
+    return clf_build(
+        fit_df=fit_df,
+        eval_df=eval_df,
+        x_keys=x_keys,
+        y_key='class_generalized',
+        method_name='lr',
+        clf_args=dict(max_iter=1e3),
+        scaler_fit_on_all=False
+    )
+
+
+def draw_head_importance_dynamic(imp_wls: List[float], x_label_postf: str, save_pref=None):
+    f1_dict_exp1 = {'train': [], 'test': [], 'eval': []}
+    f1_dict_exp2 = {'train': [], 'test': [], 'eval': []}
+
+    n_important_list = [n_important for n_important in range(1, len(imp_wls), 1)]
+
+    df2 = FEATURES_DF.iloc[0:400]
+    df3 = FEATURES_DF.iloc[400:800]
+    for n_important in n_important_list:
+        print(f"build statistic for {n_important} head important features")
+
+        x_keys = [f"{wl}_{pred}"
+                  for pred in CH_STATISTICS
+                  for wl in imp_wls[:n_important]]
+        clf_results = _clf_build(fit_df=df2, eval_df=df3, x_keys=x_keys)
+        f1_dict_exp1['train'].append(clf_results['train_f1_phyto'])
+        f1_dict_exp1['test'].append(clf_results['test_f1_phyto'])
+        f1_dict_exp1['eval'].append(clf_results['eval_f1_phyto'])
+
+        clf_results = _clf_build(fit_df=df3, eval_df=df2, x_keys=x_keys)
+        f1_dict_exp2['train'].append(clf_results['train_f1_phyto'])
+        f1_dict_exp2['test'].append(clf_results['test_f1_phyto'])
+        f1_dict_exp2['eval'].append(clf_results['eval_f1_phyto'])
+
+    for metrics_dict, split_name in zip([f1_dict_exp1, f1_dict_exp2], ['split 1', 'split 2']):
+        args = dict(
+            x_list=[n_important_list for i in range(len(metrics_dict))],
+            y_list=list(metrics_dict.values()),
+            meta_list=[[str(wl) for wl in imp_wls] for i in range(len(f1_dict_exp1))],
+            labels=list(metrics_dict.keys()),
+            x_label=f'number of head important features {x_label_postf}',
+            y_label='f1_score',
+            title=split_name,
+            save_pref=save_pref if save_pref is None else f"{save_pref} {split_name}"
+        )
+        draw_n_vectors_matplot(**args)
+        draw_n_vectors_plotly(**args)
+
+
+draw_head_importance_dynamic(imp_wls=list(RESIDUALS_ASCENDING_IMPS['wl']),
+                             x_label_postf='\n(ordered by importance deviation ascending)',
+                             save_pref='topic/imps_by_residuals_ascending')
+
+draw_head_importance_dynamic(imp_wls=list(MEAN_DESCENDING_IMPS['wl']),
+                             x_label_postf='\n(ordered by mean importance descending)',
+                             save_pref='topic/imps_by_mean_descending')
+
+draw_head_importance_dynamic(imp_wls=WLS,
+                             x_label_postf='\n(ordered by wl ascending)',
+                             save_pref='topic/imps_by_wl_ascending')
+
+draw_head_importance_dynamic(imp_wls=WLS[::-1],
+                             x_label_postf='\n(ordered by wl descending)',
+                             save_pref='topic/imps_by_wl_descending')
