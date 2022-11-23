@@ -25,8 +25,11 @@ def read_imps(path: str) -> pd.DataFrame:
         return pd.DataFrame(imp_dict).sort_values(['wl'])
 
 
-CH_STATISTICS = ['all_pixels_mean', 'all_pixels_std']
-IMP_DIR = Path('topic/imp_based_on_mean_and_std')
+CH_STATISTICS = [
+    'all_pixels_mean',
+    # 'all_pixels_std'
+]
+IMP_DIR = Path('topic/imp_based_on_mean')
 IMPS1 = f'{IMP_DIR}/imp1'
 IMPS2 = f'{IMP_DIR}/imp2'
 
@@ -34,6 +37,9 @@ IMPS2 = f'{IMP_DIR}/imp2'
 def get_all_imps_df() -> pd.DataFrame:
     imps_df1 = read_imps(IMPS1)
     imps_df2 = read_imps(IMPS2)
+    if len(CH_STATISTICS) > 1:
+        imps_df1 = imps_df1.groupby('wl').sum().reset_index()
+        imps_df2 = imps_df2.groupby('wl').sum().reset_index()
 
     all_df = pd.merge(left=imps_df1, right=imps_df2, left_on='wl', right_on='wl')
 
@@ -78,6 +84,8 @@ def _draw_imps_matplotlib():
     for key in ['importance exp 2', 'importance exp 3']:
         plt.plot(ALL_DF['wl'], ALL_DF[key], label=key)
 
+    plt.xlabel("wavelengths (nm)")
+    plt.ylabel("importance")
     plt.legend(loc="upper right")
     plt.savefig(f"{IMP_DIR}/band_imps.png", dpi=100)
     plt.clf()
@@ -107,21 +115,31 @@ def get_imps_df_by_window():
     return windows_imps_df
 
 
-def get_imps_df_by_residuals() -> pd.DataFrame:
+def get_imps_df_by_deviation() -> pd.DataFrame:
     df = ALL_DF.copy()
     df['mae'] = (df['importance exp 2'] - df['importance exp 3']).abs()
     return df[['wl', 'mae']].sort_values('mae', ascending=False)
 
 
-def get_imps_df_by_mean() -> pd.DataFrame:
+def get_imps_df_by_sum() -> pd.DataFrame:
     df = ALL_DF.copy()
-    df['mean'] = (df['importance exp 2'] + df['importance exp 3']) / 2
-    return df[['wl', 'mean']].sort_values('mean', ascending=True)
+    df['sum'] = df['importance exp 2'] + df['importance exp 3']
+    return df[['wl', 'sum']].sort_values('sum', ascending=True)
+
+
+def get_imps_by_sum_and_closeness():
+    df = ALL_DF.copy()
+    df['mae'] = (df['importance exp 2'] - df['importance exp 3']).abs()
+    df['mae_normalized'] = df['mae'] / df['mae'].max()
+    df['sum'] = df['importance exp 2'] + df['importance exp 3']
+    df['smart'] = df['sum'] * (1 - df['mae_normalized'])
+    return df[['wl', 'smart']].sort_values('smart', ascending=False)
 
 
 WINDOWS_IMPS = get_imps_df_by_window()
-RESIDUALS_ASCENDING_IMPS = get_imps_df_by_residuals()
-MEAN_DESCENDING_IMPS = get_imps_df_by_mean()
+DEVIATION_ASCENDING_IMPS = get_imps_df_by_deviation()
+SUM_DESCENDING_IMPS = get_imps_df_by_sum()
+SMART_IMPS = get_imps_by_sum_and_closeness()
 
 ########################################################################################################################
 # --------------------------------- check minimal sufficient subset of channels ----------------------------------------
@@ -152,15 +170,16 @@ def draw_head_importance_dynamic(imp_wls: List[float], x_label_postf: str, save_
     for n_important in n_important_list:
         print(f"build statistic for {n_important} head important features")
 
-        x_keys = [f"{wl}_{pred}"
-                  for pred in CH_STATISTICS
-                  for wl in imp_wls[:n_important]]
-        clf_results = _clf_build(fit_df=df2, eval_df=df3, x_keys=x_keys)
+        head_n_features = [f"{wl}_{pred}"
+                           for pred in CH_STATISTICS
+                           for wl in imp_wls[:n_important]]
+
+        clf_results = _clf_build(fit_df=df2, eval_df=df3, x_keys=head_n_features)
         f1_dict_exp1['train'].append(clf_results['train_f1_phyto'])
         f1_dict_exp1['test'].append(clf_results['test_f1_phyto'])
         f1_dict_exp1['eval'].append(clf_results['eval_f1_phyto'])
 
-        clf_results = _clf_build(fit_df=df3, eval_df=df2, x_keys=x_keys)
+        clf_results = _clf_build(fit_df=df3, eval_df=df2, x_keys=head_n_features)
         f1_dict_exp2['train'].append(clf_results['train_f1_phyto'])
         f1_dict_exp2['test'].append(clf_results['test_f1_phyto'])
         f1_dict_exp2['eval'].append(clf_results['eval_f1_phyto'])
@@ -180,18 +199,32 @@ def draw_head_importance_dynamic(imp_wls: List[float], x_label_postf: str, save_
         draw_n_vectors_plotly(**args)
 
 
-draw_head_importance_dynamic(imp_wls=list(RESIDUALS_ASCENDING_IMPS['wl']),
-                             x_label_postf='\n(ordered by importance deviation ascending)',
-                             save_pref='topic/imps_by_residuals_ascending')
+draw_head_importance_dynamic(imp_wls=list(DEVIATION_ASCENDING_IMPS['wl']),
+                             x_label_postf='\n(ordered by mae(train, eval) importance criterion asc ↑)',
+                             save_pref=f'{IMP_DIR}/imps_by_importance_mae_asc')
 
-draw_head_importance_dynamic(imp_wls=list(MEAN_DESCENDING_IMPS['wl']),
-                             x_label_postf='\n(ordered by mean importance descending)',
-                             save_pref='topic/imps_by_mean_descending')
+draw_head_importance_dynamic(imp_wls=list(SUM_DESCENDING_IMPS['wl']),
+                             x_label_postf='\n(ordered by sum(train, eval) importance criterion desc ↓)',
+                             save_pref=f'{IMP_DIR}/imps_by_importance_sum_desc')
+
+draw_head_importance_dynamic(imp_wls=list(SMART_IMPS['wl']),
+                             x_label_postf='\n(ordered by sum(train, eval) & closeness(train,eval) importance desc ↓)',
+                             save_pref=f'{IMP_DIR}/imps_by_smart_asc')
+
+draw_head_importance_dynamic(imp_wls=list(ALL_DF.sort_values('importance exp 2', ascending=False)['wl']),
+                             x_label_postf='\n(ordered by exp 2 importance desc ↓)',
+                             save_pref=f'{IMP_DIR}/imps_by_exp_2_desc',
+                             )
+
+draw_head_importance_dynamic(imp_wls=list(ALL_DF.sort_values('importance exp 3', ascending=False)['wl']),
+                             x_label_postf='\n(ordered by exp 3 importance desc ↓)',
+                             save_pref=f'{IMP_DIR}/imps_by_exp_3_desc',
+                             )
 
 draw_head_importance_dynamic(imp_wls=WLS,
-                             x_label_postf='\n(ordered by wl ascending)',
-                             save_pref='topic/imps_by_wl_ascending')
+                             x_label_postf='\n(ordered by wl asc ↑)',
+                             save_pref=f'{IMP_DIR}/imps_by_wl_ascending')
 
 draw_head_importance_dynamic(imp_wls=WLS[::-1],
-                             x_label_postf='\n(ordered by wl descending)',
-                             save_pref='topic/imps_by_wl_descending')
+                             x_label_postf='\n(ordered by wl desc ↓)',
+                             save_pref=f'{IMP_DIR}/imps_by_wl_descending')
