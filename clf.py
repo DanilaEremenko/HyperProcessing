@@ -6,7 +6,7 @@ from scipy.special import softmax
 
 from sklearn import preprocessing, tree, metrics
 from sklearn.linear_model import LogisticRegression
-from sklearn.model_selection import cross_val_score, train_test_split, StratifiedKFold
+from sklearn.model_selection import cross_val_score, train_test_split, StratifiedKFold, GridSearchCV
 from sklearn.pipeline import make_pipeline
 from sklearn.svm import SVC
 from sklearn.tree import DecisionTreeClassifier
@@ -21,7 +21,7 @@ def clf_decision_analyze(clf, features: List[str], class_labels: List[str]):
         res_path = "decision_tree.png"
         fig.savefig(res_path)
         print(f"Decision tree structure saved into {res_path}")
-    elif isinstance(clf, LogisticRegression):
+    elif isinstance(clf, LogisticRegression) or isinstance(clf, SVC):
         imps = np.abs(clf.coef_.flatten())
         imps = softmax(imps)
         assert len(imps) == len(features)
@@ -43,8 +43,6 @@ def clf_build(
         clf_pretrained=None,
         scaler_fit_on_all=False
 ) -> Dict[str, float]:
-    clf_args = {} if clf_args is None else clf_args
-
     x_fit = fit_df[x_keys]
     y_fit = fit_df[y_key]
 
@@ -60,11 +58,32 @@ def clf_build(
 
     if clf_pretrained is None:
         if method_name == 'lr':
-            clf = make_pipeline(scaler, LogisticRegression(**clf_args, random_state=16))
+            if clf_args is not None:
+                clf = make_pipeline(scaler, LogisticRegression(**clf_args))
+            else:
+                common_args = {'max_iter': [1e4], 'random_state': [16]}
+                param_grid = [
+                    {'solver': ['lbfgs'], 'C': [1e0, 1e1, 1e2, 1e3], 'penalty': ['l2'], **common_args},
+                    # {'solver': ['sag'], 'C': [1e0, 1e1, 1e2, 1e3], 'penalty': ['l2'],**common_args},
+                    # {'solver': ['saga'], 'C': [1e0, 1e1, 1e2, 1e3], 'penalty': ['elasticnet', 'l1', 'l2'],**common_args},
+                ]
+                clf_grid = GridSearchCV(LogisticRegression(), param_grid)
+                clf_grid.fit(X=x_fit, y=y_fit)
+                clf = make_pipeline(scaler, clf_grid.best_estimator_)
         elif method_name == 'dt':
-            clf = make_pipeline(scaler, DecisionTreeClassifier(**clf_args, random_state=16))
+            clf = make_pipeline(scaler, DecisionTreeClassifier(random_state=16))
         elif method_name == 'svc':
-            clf = make_pipeline(scaler, SVC(**clf_args, random_state=16))
+            if clf_args is not None:
+                clf = make_pipeline(scaler, SVC(**clf_args))
+            else:
+                common_args = {'random_state': [16]}
+                param_grid = [
+                    {'C': [1e0, 1e1, 1e2, 1e3], 'kernel': ['linear'], **common_args},
+                    {'C': [1e0, 1e1, 1e2, 1e3], 'gamma': [1e-1, 1e-2, 1e-3, 1e-4], 'kernel': ['rbf'], **common_args},
+                ]
+                clf_grid = GridSearchCV(SVC(), param_grid)
+                clf_grid.fit(X=x_fit, y=y_fit)
+                clf = make_pipeline(scaler, clf_grid.best_estimator_)
         else:
             raise Exception(f"Undefined clf method = {method_name}")
 
