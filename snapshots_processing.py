@@ -277,6 +277,11 @@ BANDS_DICT = {
     },
 
     # 'blue_set': BandRangeSet(wls=[450]),
+    # 'blue': BandRangeBounds(440, 500),
+    # 'green': BandRangeBounds(500, 590),
+    # 'red': BandRangeBounds(590, 780),
+    # 'visible': BandRangeBounds(440, 780),
+    # 'infrared': BandRangeBounds(780, 1000),
 
     # 'blue': BandRangeBounds(440, 485),
     # 'cyan': BandRangeBounds(485, 500),
@@ -286,6 +291,7 @@ BANDS_DICT = {
     # 'red': BandRangeBounds(625, 780),
     # 'visible': BandRangeBounds(440, 780),
     # 'infrared': BandRangeBounds(780, 1000),
+
     'all': BandRangeBounds(400, 1000),
 }
 
@@ -314,7 +320,7 @@ class SnapshotMeta:
             'ARI': 1 / R(550) - 1 / R(702),  # green right & red middle
             'BGI': R(450) / R(550),  # blue left & green right
             'BRI': R(450) / R(690),  # blue left & red middle
-            'CAI': R(450) / R(690),  # blue left & red middle
+            # 'CAI': R(450) / R(690),  # blue left & red middle
 
             'CRI1': 1 / R(510) - 1 / R(550),  # green left & green right
             'CRI2': 1 / R(510) - 1 / R(702),  # green left & red middle
@@ -336,10 +342,13 @@ class SnapshotMeta:
             band_data: BandData = band_data
 
             curr_band_features = {
-                'mean_agg_in_pixels': band_data.mean_in_pxs_by_ch.mean(),
-                # 'dev_agg_in_pixels': band_data.mean_dev_in_px,
+                'all_pixels_mean': band_data.mean_in_pxs_by_ch.mean(),
+                'all_pixels_std': band_data.mean_dev_in_px,
+
+                # 'min_max_diff': (band_data.mean_in_pxs_by_ch.max() - band_data.mean_in_pxs_by_ch.min()) /
+                #                 (band_data.mean_in_pxs_by_ch.max() + band_data.mean_in_pxs_by_ch.min()),
                 # 'dev_agg_in_channels': band_data.mean_dev_in_ch,
-                #
+
                 # 'too_low_pxs_mean': band_data.get_too_low_pxs().mean(),
                 # 'too_high_pxs_mean': band_data.get_too_high_pxs().mean(),
 
