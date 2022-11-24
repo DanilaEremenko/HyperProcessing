@@ -9,11 +9,11 @@ from pandas.core.dtypes.common import is_numeric_dtype
 
 from clf import clf_build
 from drawing import draw_hp_glasses, draw_snapshots_as_reflectance, draw_snapshots_in_features_space, \
-    draw_snapshots_in_all_paired_features_space, draw_tsne
+    draw_snapshots_in_all_paired_features_space, draw_tsne_plotly, draw_tsne_matplot
 from experiments import *
 from snapshots_processing import SnapshotMeta, BandData, BANDS_DICT
 
-RES_DIR = Path('sub-wheat_comparison_with_indexes_filtered_wl_imp_analyze')
+RES_DIR = Path('sub-wheat_comparison_with_indexes_filtered_each_wl_imp_analyze_topic_stuf')
 RES_DIR.mkdir(exist_ok=True)
 
 CLASSES_DICT = {
@@ -21,8 +21,9 @@ CLASSES_DICT = {
     # **POTATO_NEW,
 
     # **WHEAT_ALL,
+    # **WHEAT_ALL_FILTERED,
 
-    **WHEAT_ALL_FILTERED
+    **WHEAT_ALL_CLEAR_EXP
 }
 
 MAX_FILES_IN_DIR = 100
@@ -68,7 +69,7 @@ def get_features_df(group_features: Dict[str, List[SnapshotMeta]]) -> pd.DataFra
         for row_i, snapshot_meta in enumerate(class_snapshots):
             # cast for ide
             snapshot_meta: SnapshotMeta = snapshot_meta
-
+            print(f'getting features for {snapshot_meta.name}')
             features_dict = snapshot_meta.get_features_dict()
             features_dict['class'] = class_name
             features_dict['class_generalized'] = 'phyto' if 'phyto' in class_name else 'health'
@@ -111,7 +112,7 @@ def draw_files(classes_features_dict: Dict[str, List[SnapshotMeta]], features_df
     #                               x_range=(0, 200), y_range=(8_000, 10_000), mode='px')
 
     # draw snapshots in features space
-    draw_snapshots_in_features_space(features_df=features_df, res_dir=RES_DIR)
+    # draw_snapshots_in_features_space(features_df=features_df, res_dir=RES_DIR)
     draw_snapshots_in_all_paired_features_space(features_df=features_df, res_dir=RES_DIR)
 
 
@@ -167,8 +168,10 @@ if __name__ == '__main__':
     }
 
     clf_build(
-        fit_df=pd.concat([features_df.iloc[800:1000], features_df.iloc[1300:1500]]),
-        eval_df=pd.concat([features_df.iloc[1600:1800], features_df.iloc[2000:2200]]),
+        # fit_df=pd.concat([features_df.iloc[800:1000], features_df.iloc[1300:1500]]),
+        # eval_df=pd.concat([features_df.iloc[1600:1800], features_df.iloc[2000:2200]]),
+        fit_df=features_df.iloc[0:400],
+        eval_df=features_df.iloc[400:800],
         # features_df=features_df.iloc[[i for i, name in enumerate(list(features_df['dir']))
         #                               if int(name[-1]) in [4, 5, 6, 7]]],
         # features_df.iloc[[i for i, name in enumerate(list(features_df['dir']))
@@ -177,52 +180,62 @@ if __name__ == '__main__':
         #                                 if 'day' in name and int(name.split('day')[1][0]) in [4, 5, 6, 7]]],
         x_keys=[
             *[
-                f"{range}_{pred}"
+                f"{_range}_{pred}"
                 for pred in [
-                    # 'mean_agg_in_pixels',
-                    # 'dev_agg_in_pixels', 'dev_agg_in_channels',
+                    'all_pixels_mean',
+                    # 'all_pixels_std',
+                    # 'dev_agg_in_pixels',
+                    # 'dev_agg_in_channels',  # good one for all bands
                     # 'too_low_pxs_mean', 'too_high_pxs_mean',
                     # 'cl_all_het', 'cl_low_het', 'cl_high_het', 'cl_high_part', 'cl_low_part',
                 ]
-                for range in BANDS_DICT.keys()
+                # for range in BANDS_DICT.keys()
+                # for _range in [str(wl) for wl in range(514, 550, 4)]
+                # for _range in [wl for wl in np.arange(450, 871, 4)]
+                # for _range in [762, 650, 470, 766, 466, 706, 502, 718, 854, 722, 714]  # lr
+                for _range in [502, 466, 598, 718, 534, 766, 694, 650, 866, 602, 858]  # svm
+
             ],
             *[
-                'ARI', 'BGI', 'BRI', 'CAI', 'CRI1', 'CRI2', 'CSI1', 'CSI2', 'CUR', 'gNDVI', 'hNDVI',
+                # 'ARI', 'BGI', 'BRI', 'CRI1', 'CRI2', 'CSI1', 'CSI2', 'CUR', 'gNDVI', 'hNDVI',
                 # 'NPCI'
             ]
         ],
         y_key='class_generalized',
-        method_name='lr',
-        clf_args=dict(max_iter=1e3),
-        # method_name='svc',
+        # method_name='lr',
+        method_name='svc',
         # clf_args=dict(kernel='rbf', C=3.),
         # dec_analyze=True,
         # clf_pretrained=clf_results['clf'],
         scaler_fit_on_all=False
     )
 
-    draw_tsne(
-        features_df=features_df,
-        # features_df=features_df.iloc[[i for i, name in enumerate(list(features_df['dir']))
-        #                               if int(name[-1]) in [4, 5, 6, 7]]],
-        # features_df.iloc[[i for i, name in enumerate(list(features_df['dir']))
-        #                   if '000' == name[-3:] and 'day' not in name and int(name[-5]) in [4, 5, 6, 7]]],
-        # features_df = features_df.iloc[[i for i, name in enumerate(list(features_df['dir']))
-        #                                 if 'day' in name and int(name.split('day')[1][0]) in [4, 5, 6, 7]]],
-        features=[
-            *[
-                f"{range}_{pred}"
-                for pred in [
-                    # 'mean_agg_in_pixels',
-                    'dev_agg_in_pixels', 'dev_agg_in_channels',
-                    # 'too_low_pxs_mean', 'too_high_pxs_mean',
-                    'cl_all_het', 'cl_low_het', 'cl_high_het', 'cl_high_part', 'cl_low_part',
-                ]
-                for range in ['blue', 'cyan', 'infrared', 'green']
-            ],
-            *[
-                'ARI', 'BGI', 'BRI', 'CAI', 'CRI1', 'CRI2', 'CSI1', 'CSI2', 'CUR', 'gNDVI', 'hNDVI',
-                # 'NPCI'
-            ]
-        ],
-    )
+    # draw_tsne_matplot(
+    #     features_df=features_df,
+    #     # features_df=features_df.iloc[[i for i, name in enumerate(list(features_df['dir']))
+    #     #                               if int(name[-1]) in [4, 5, 6, 7]]],
+    #     # features_df.iloc[[i for i, name in enumerate(list(features_df['dir']))
+    #     #                   if '000' == name[-3:] and 'day' not in name and int(name[-5]) in [4, 5, 6, 7]]],
+    #     # features_df = features_df.iloc[[i for i, name in enumerate(list(features_df['dir']))
+    #     #                                 if 'day' in name and int(name.split('day')[1][0]) in [4, 5, 6, 7]]],
+    #     features=[
+    #         *[
+    #             f"{_range}_{pred}"
+    #             for pred in [
+    #                 'all_pixels_mean',
+    #                 # 'all_pixels_std',
+    #                 # 'dev_agg_in_pixels',
+    #                 # 'dev_agg_in_channels',  # good one for all bands
+    #                 # 'too_low_pxs_mean', 'too_high_pxs_mean',
+    #                 # 'cl_all_het', 'cl_low_het', 'cl_high_het', 'cl_high_part', 'cl_low_part',
+    #             ]
+    #             # for _range in [wl for wl in np.arange(450, 871, 4)]
+    #             for _range in [762, 650, 470, 766, 466, 706, 502, 718, 854, 722, 714]
+    #         ],
+    #         *[
+    #             # 'ARI', 'BGI', 'BRI', 'CRI1', 'CRI2', 'CSI1', 'CSI2', 'CUR', 'gNDVI', 'hNDVI',
+    #             # 'NPCI'
+    #         ]
+    #     ],
+    #     save_pref='tsne_important'
+    # )
