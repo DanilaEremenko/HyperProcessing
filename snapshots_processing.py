@@ -1,7 +1,9 @@
+import os
 from math import sin
 from typing import List, Dict, Tuple
 import numpy as np
 import pandas as pd
+from numpy import genfromtxt
 from sklearn.cluster import KMeans
 
 
@@ -263,6 +265,44 @@ class BandData:
         self._cl_features = None
 
 
+class BandYri:
+    def get_band_data_in_ch_id(self, ch_id: int) -> np.ndarray:
+        return self.band_data[:, 0]
+
+    def __init__(self, all_data):
+        # separate coordinates and snapshot data
+        self.coordinates = all_data[1:, :2].copy()
+
+        # coordinates matching with image format
+        self.coordinates[:, 0] = all_data[1:, 1]
+        self.coordinates[:, 1] = -all_data[1:, 0]
+
+        self.wave_lengths = [0]
+
+        # filter wavelengths
+        band_data = (all_data[:, 72] - all_data[:, 2]) / (all_data[:, 72] + all_data[:, 2]) \
+                    + 0.5 * all_data[:, 73]
+        band_data = band_data[1:]
+        band_data = np.expand_dims(band_data, axis=1)
+
+        # filter pixels
+        # band_data = self.get_filtered_interval_pixels(band_data, mode='crop_right', part=0.2)
+
+        self.mean_in_ch_by_px = band_data.mean(axis=0)
+        # self.left_dev_in_chs_by_px = band_data.mean(axis=0) + calculate_dev_in_channels(band_data, mode='left')
+        # self.right_dev_in_chs_by_px = band_data.mean(axis=0) + calculate_dev_in_channels(band_data, mode='right')
+
+        self.mean_in_pxs_by_ch = band_data.mean(axis=1)
+        # self.left_dev_in_pxs_by_ch = band_data.mean(axis=1) + calculate_dev_in_pixels(band_data, mode='left')
+        # self.right_dev_in_pxs_by_ch = band_data.mean(axis=1) + calculate_dev_in_pixels(band_data, mode='right')
+
+        self.band_data = band_data
+
+        # let's go lazy
+        self._padded_data = None
+        self._cl_features = None
+
+
 WLS = np.arange(450, 871, 4)
 
 BANDS_DICT = {
@@ -304,6 +344,7 @@ class SnapshotMeta:
             band_name: BandData(band_range=band_range, all_data=all_data)
             for band_name, band_range in BANDS_DICT.items()
         }
+        # self.bands['YRI'] = BandYri(all_data=all_data)
 
     def get_indexes_features(self) -> dict:
 
@@ -387,3 +428,27 @@ class SnapshotMeta:
 
     def get_features_dict(self) -> dict:
         return {**self.get_sep_band_features(), **self.get_indexes_features()}
+
+
+def parse_classes(classes_dict: Dict[str, List[str]], max_files_in_dir: int) -> Dict[str, List[SnapshotMeta]]:
+    classes_features: Dict[str, List[SnapshotMeta]] = {class_name: [] for class_name in classes_dict.keys()}
+    for class_name, class_dirs in classes_dict.items():
+        features = classes_features[class_name]
+        for dir_path in class_dirs:
+            print(f"parsing snapshots from {dir_path}")
+            files = list(os.listdir(dir_path))[:max_files_in_dir]
+            for file_id, file in enumerate(files):
+                print(f"  parsing file={file}")
+                all_data = genfromtxt(
+                    f'{dir_path}/{file}',
+                    delimiter=','
+                )
+
+                if len(all_data) < 20:
+                    print(f"  {file} small leaf, scip..")
+                else:
+                    features.append(
+                        SnapshotMeta(dir_path=dir_path, name=file, all_data=all_data)
+                    )
+
+    return classes_features

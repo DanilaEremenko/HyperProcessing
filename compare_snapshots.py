@@ -11,7 +11,7 @@ from clf import clf_build
 from drawing import draw_hp_glasses, draw_snapshots_as_reflectance, draw_snapshots_in_features_space, \
     draw_snapshots_in_all_paired_features_space, draw_tsne_plotly, draw_tsne_matplot
 from experiments import *
-from snapshots_processing import SnapshotMeta, BandData, BANDS_DICT
+from snapshots_processing import SnapshotMeta, BandData, BANDS_DICT, parse_classes
 
 RES_DIR = Path('sub-wheat_comparison_with_indexes_filtered_each_wl_imp_analyze_topic_stuf')
 RES_DIR.mkdir(exist_ok=True)
@@ -36,30 +36,6 @@ def draw_klebs_np(ax, snapshot: np.ndarray, title: str):
     ax.set_xlim(400, 900)
     ax.set_ylim(0, 10_000)
     ax.set_title(title)
-
-
-def parse_classes(classes_dict: Dict[str, List[str]], max_files_in_dir: int) -> Dict[str, List[SnapshotMeta]]:
-    classes_features: Dict[str, List[SnapshotMeta]] = {class_name: [] for class_name in classes_dict.keys()}
-    for class_name, class_dirs in classes_dict.items():
-        features = classes_features[class_name]
-        for dir_path in class_dirs:
-            print(f"parsing snapshots from {dir_path}")
-            files = list(os.listdir(dir_path))[:max_files_in_dir]
-            for file_id, file in enumerate(files):
-                print(f"  parsing file={file}")
-                all_data = genfromtxt(
-                    f'{dir_path}/{file}',
-                    delimiter=','
-                )
-
-                if len(all_data) < 20:
-                    print(f"  {file} small leaf, scip..")
-                else:
-                    features.append(
-                        SnapshotMeta(dir_path=dir_path, name=file, all_data=all_data)
-                    )
-
-    return classes_features
 
 
 def get_features_df(group_features: Dict[str, List[SnapshotMeta]]) -> pd.DataFrame:
