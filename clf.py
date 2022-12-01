@@ -61,14 +61,14 @@ def clf_build(
             if clf_args is not None:
                 clf = make_pipeline(scaler, LogisticRegression(**clf_args))
             else:
-                common_args = {'max_iter': [1e4], 'random_state': [16]}
+                common_args = {'max_iter': [1e5], 'random_state': [16]}
                 param_grid = [
                     {'solver': ['lbfgs'], 'C': [1e0, 1e1, 1e2, 1e3], 'penalty': ['l2'], **common_args},
                     # {'solver': ['sag'], 'C': [1e0, 1e1, 1e2, 1e3], 'penalty': ['l2'],**common_args},
                     # {'solver': ['saga'], 'C': [1e0, 1e1, 1e2, 1e3], 'penalty': ['elasticnet', 'l1', 'l2'],**common_args},
                 ]
                 clf_grid = GridSearchCV(LogisticRegression(), param_grid)
-                clf_grid.fit(X=x_fit, y=y_fit)
+                clf_grid.fit(X=scaler.transform(x_fit), y=y_fit)
                 clf = make_pipeline(scaler, clf_grid.best_estimator_)
         elif method_name == 'dt':
             clf = make_pipeline(scaler, DecisionTreeClassifier(random_state=16))
@@ -76,13 +76,13 @@ def clf_build(
             if clf_args is not None:
                 clf = make_pipeline(scaler, SVC(**clf_args))
             else:
-                common_args = {'random_state': [16]}
+                common_args = {'max_iter': [1e5], 'random_state': [16]}
                 param_grid = [
                     {'C': [1e0, 1e1, 1e2, 1e3], 'kernel': ['linear'], **common_args},
                     {'C': [1e0, 1e1, 1e2, 1e3], 'gamma': [1e-1, 1e-2, 1e-3, 1e-4], 'kernel': ['rbf'], **common_args},
                 ]
                 clf_grid = GridSearchCV(SVC(), param_grid)
-                clf_grid.fit(X=x_fit, y=y_fit)
+                clf_grid.fit(X=scaler.transform(x_fit), y=y_fit)
                 clf = make_pipeline(scaler, clf_grid.best_estimator_)
         else:
             raise Exception(f"Undefined clf method = {method_name}")
