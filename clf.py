@@ -14,6 +14,29 @@ from sklearn.tree import DecisionTreeClassifier
 import pandas as pd
 
 
+def cfs(corr_df: pd.DataFrame, features: List[str], target_key: str, top_n: int) -> List[str]:
+    """
+    Correlation based feature selection method implementation
+    """
+    tf_features_corr_df = corr_df.loc[
+        [*features, target_key],
+        [*features, target_key]
+    ]
+
+    tf_features_imp_df = [
+                             {
+                                 'feature_name': feature_name,
+                                 'corr_imp': feature_corr_vector.iloc[-1].__abs__() /
+                                             feature_corr_vector.iloc[:-1].abs().mean()
+                             }
+                             for feature_name, feature_corr_vector in tf_features_corr_df.iterrows()
+                         ][:-1]
+    tf_features_imp_df = pd.DataFrame(tf_features_imp_df).sort_values('corr_imp', ascending=False).reset_index(
+        drop=True)
+
+    return tf_features_imp_df.iloc[:top_n]['feature_name']
+
+
 def clf_decision_analyze(clf, features: List[str], class_labels: List[str]):
     if isinstance(clf, DecisionTreeClassifier):
         fig = plt.figure(figsize=(25, 20))

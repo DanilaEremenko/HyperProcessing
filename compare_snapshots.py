@@ -7,13 +7,13 @@ import os
 import pandas as pd
 from pandas.core.dtypes.common import is_numeric_dtype
 
-from clf import clf_build
+from clf import clf_build, cfs
 from drawing import draw_hp_glasses, draw_snapshots_as_reflectance, draw_snapshots_in_features_space, \
     draw_snapshots_in_all_paired_features_space, draw_tsne_plotly, draw_tsne_matplot
 from experiments import *
 from snapshots_processing import SnapshotMeta, BandData, BANDS_DICT, parse_classes
 
-RES_DIR = Path('sub-wheat_comparison_with_indexes_filtered_each_wl_imp_analyze_topic_stuf')
+RES_DIR = Path('sub-wheat_comparison_justified_each_wl_tf_features')
 RES_DIR.mkdir(exist_ok=True)
 
 CLASSES_DICT = {
@@ -23,7 +23,8 @@ CLASSES_DICT = {
     # **WHEAT_ALL,
     # **WHEAT_ALL_FILTERED,
 
-    **WHEAT_ALL_CLEAR_EXP
+    # **WHEAT_ALL_CLEAR_EXP,
+    **WHEAT_ALL_JUSTIFIED_EXP
 }
 
 MAX_FILES_IN_DIR = 100
@@ -100,7 +101,7 @@ def main() -> pd.DataFrame:
 
     features_df = get_features_df(group_features=classes_features_dict)
 
-    draw_files(classes_features_dict=classes_features_dict, features_df=features_df)
+    # draw_files(classes_features_dict=classes_features_dict, features_df=features_df)
 
     return features_df
 
@@ -124,30 +125,42 @@ def get_statistics_grouped_by_key_df(features_df: pd.DataFrame, group_key: str) 
     return pd.DataFrame(statistics_list)
 
 
+def _get_top_tf_features(top_n: int) -> List[str]:
+    return cfs(
+        corr_df=features_corr_df,
+        features=[tf_feature for tf_feature in features_df.keys() if 'tf_gr' in tf_feature],
+        target_key='class_generalized_num',
+        top_n=top_n
+    )
+
+
 if __name__ == '__main__':
     # features_df = main()
     #
     # features_df.to_csv(f"{RES_DIR}/features.csv", index=False)
     features_df = pd.read_csv(f"{RES_DIR}/features.csv")
+    features_df.loc[:, 'class_generalized_num'] = [0 if 'health' in class_generalized else 1
+                                                   for class_generalized in list(features_df['class_generalized'])]
 
     stat_df = get_statistics_grouped_by_key_df(features_df=features_df, group_key='class')
     # stat_df[stat_df['feature'] == 'hNDVI']
 
-    features_corr = features_df[[key for key in features_df.keys()]].corr(numeric_only=True)
-
-    features_by_classes = {class_name: features_df[features_df['class'] == class_name]
-                           for class_name in features_df['class'].unique()}
+    features_corr_df = features_df[[key for key in features_df.keys()]].corr(numeric_only=True)
+    features_corr_df_by_classes = {class_name: features_df[features_df['class'] == class_name]
+                                   for class_name in features_df['class'].unique()}
 
     features_corr_by_classes = {
         class_name: class_df[[key for key in class_df.keys()]].corr(numeric_only=True)
-        for class_name, class_df in features_by_classes.items()
+        for class_name, class_df in features_corr_df_by_classes.items()
     }
 
     clf_build(
         # fit_df=pd.concat([features_df.iloc[800:1000], features_df.iloc[1300:1500]]),
         # eval_df=pd.concat([features_df.iloc[1600:1800], features_df.iloc[2000:2200]]),
-        fit_df=features_df.iloc[0:400],
-        eval_df=features_df.iloc[400:800],
+        eval_df=pd.concat([features_df.iloc[0:200], features_df.iloc[400:600]]),
+        fit_df=pd.concat([features_df.iloc[600:800], features_df.iloc[900:1100]]),
+        # fit_df=features_df.iloc[0:600],
+        # eval_df=features_df.iloc[600:1200],
         # features_df=features_df.iloc[[i for i, name in enumerate(list(features_df['dir']))
         #                               if int(name[-1]) in [4, 5, 6, 7]]],
         # features_df.iloc[[i for i, name in enumerate(list(features_df['dir']))
@@ -167,14 +180,18 @@ if __name__ == '__main__':
                 ]
                 # for range in BANDS_DICT.keys()
                 # for _range in [str(wl) for wl in range(514, 550, 4)]
-                # for _range in [wl for wl in np.arange(450, 871, 4)]
+                for _range in [wl for wl in np.arange(450, 871, 4)]
                 # for _range in [762, 650, 470, 766, 466, 706, 502, 718, 854, 722, 714]  # lr
-                for _range in [502, 466, 598, 718, 534, 766, 694, 650, 866, 602, 858]  # svm
+                # for _range in [502, 466, 598, 718, 534, 766, 694, 650, 866, 602, 858]  # svm
 
             ],
             *[
                 # 'ARI', 'BGI', 'BRI', 'CRI1', 'CRI2', 'CSI1', 'CSI2', 'CUR', 'gNDVI', 'hNDVI',
                 # 'NPCI'
+            ],
+            *[
+                # tf_feature for tf_feature in features_df.keys() if 'tf_gr' in tf_feature and tf_feature[-2:] in ['_0']
+                # *list(_get_top_tf_features(top_n=20))
             ]
         ],
         y_key='class_generalized',
