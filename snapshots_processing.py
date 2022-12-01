@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 from numpy import genfromtxt
 from sklearn.cluster import KMeans
+from skimage.feature import graycomatrix, graycoprops
 
 
 class BandRange:
@@ -346,6 +347,42 @@ class SnapshotMeta:
         }
         # self.bands['YRI'] = BandYri(all_data=all_data)
 
+    def get_tf_gr_features_for_band(self, wl: str) -> dict:
+        image = self.bands[wl].padded_data[:, :, 0]
+        bins = np.linspace(4000, 10_000, 16)
+        inds = np.digitize(image, bins)
+
+        max_value = inds.max() + 1
+        coefs = [0, 1 / 4, 1 / 2, 3 / 4]
+        angles_radians = [np.pi * coef for coef in coefs]
+        angles_degree = [180 * coef for coef in coefs]
+
+        matrix_coocurrence = graycomatrix(
+            image=inds,
+            distances=[1],
+            angles=angles_radians,
+            levels=max_value,
+            normed=False,
+            symmetric=False
+        )
+
+        # GLCM properties
+        def features_by_angles(feature_name: str) -> dict:
+            features_vect = graycoprops(matrix_coocurrence, feature_name).flatten()
+            return {f"{wl}_tf_gr_{feature_name}_{angle}": tf for tf, angle in zip(features_vect, angles_degree)}
+
+        feature_keys = ['contrast', 'dissimilarity', 'homogeneity', 'energy', 'correlation']
+
+        feature_list = [features_by_angles(feature_name=feature_key) for feature_key in feature_keys]
+        feature_dict = {key: value for d in feature_list for key, value in d.items()}
+
+        return feature_dict
+
+    def get_sep_tf_features(self) -> dict:
+        feature_list = [self.get_tf_gr_features_for_band(wl=str(wl)) for wl in WLS]
+        feature_dict = {key: value for d in feature_list for key, value in d.items()}
+        return feature_dict
+
     def get_indexes_features(self) -> dict:
 
         R_HASH = {}
@@ -427,7 +464,11 @@ class SnapshotMeta:
         return features_dict
 
     def get_features_dict(self) -> dict:
-        return {**self.get_sep_band_features(), **self.get_indexes_features()}
+        return {
+            **self.get_sep_band_features(),
+            **self.get_sep_tf_features(),
+            **self.get_indexes_features()
+        }
 
 
 def parse_classes(classes_dict: Dict[str, List[str]], max_files_in_dir: int) -> Dict[str, List[SnapshotMeta]]:
