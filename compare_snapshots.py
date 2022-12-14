@@ -13,7 +13,7 @@ from drawing import draw_hp_glasses, draw_snapshots_as_reflectance, draw_snapsho
 from experiments import *
 from snapshots_processing import SnapshotMeta, BandData, BANDS_DICT, parse_classes
 
-RES_DIR = Path('sub-wheat_comparison_justified_each_wl_tf_features')
+RES_DIR = Path('sub-wheat_comparison_justified_each_wl_tf_mean_features')
 RES_DIR.mkdir(exist_ok=True)
 
 CLASSES_DICT = {
@@ -180,17 +180,18 @@ if __name__ == '__main__':
                 ]
                 # for range in BANDS_DICT.keys()
                 # for _range in [str(wl) for wl in range(514, 550, 4)]
-                for _range in [wl for wl in np.arange(450, 871, 4)]
+                # for _range in [wl for wl in np.arange(450, 871, 4)]
                 # for _range in [762, 650, 470, 766, 466, 706, 502, 718, 854, 722, 714]  # lr
-                # for _range in [502, 466, 598, 718, 534, 766, 694, 650, 866, 602, 858]  # svm
+                for _range in [502, 466, 598, 718, 534, 766, 694, 650, 866, 602, 858]  # svm
 
             ],
             *[
                 # 'ARI', 'BGI', 'BRI', 'CRI1', 'CRI2', 'CSI1', 'CSI2', 'CUR', 'gNDVI', 'hNDVI',
+                # 'PRI', 'PHRI', 'NDVI', 'MSR', 'TVI', 'SIPI', 'NPCI', 'ARI', 'GI', 'TCARI', 'PSRI', 'RVSI', 'NRI', 'YRI'
                 # 'NPCI'
             ],
             *[
-                # tf_feature for tf_feature in features_df.keys() if 'tf_gr' in tf_feature and tf_feature[-2:] in ['_0']
+                # tf_feature for tf_feature in features_df.keys() if 'tf_gr' in tf_feature
                 # *list(_get_top_tf_features(top_n=20))
             ]
         ],
@@ -222,13 +223,22 @@ if __name__ == '__main__':
     #                 # 'too_low_pxs_mean', 'too_high_pxs_mean',
     #                 # 'cl_all_het', 'cl_low_het', 'cl_high_het', 'cl_high_part', 'cl_low_part',
     #             ]
-    #             # for _range in [wl for wl in np.arange(450, 871, 4)]
-    #             for _range in [762, 650, 470, 766, 466, 706, 502, 718, 854, 722, 714]
+    #             # for range in BANDS_DICT.keys()
+    #             # for _range in [str(wl) for wl in range(514, 550, 4)]
+    #             for _range in [wl for wl in np.arange(450, 871, 4)]
+    #             # for _range in [762, 650, 470, 766, 466, 706, 502, 718, 854, 722, 714]  # lr
+    #             # for _range in [502, 466, 598, 718, 534, 766, 694, 650, 866, 602, 858]  # svm
+    #
     #         ],
     #         *[
     #             # 'ARI', 'BGI', 'BRI', 'CRI1', 'CRI2', 'CSI1', 'CSI2', 'CUR', 'gNDVI', 'hNDVI',
+    #             # 'PRI', 'PHRI', 'NDVI', 'MSR', 'TVI', 'SIPI', 'NPCI', 'ARI', 'GI', 'TCARI', 'PSRI', 'RVSI', 'NRI', 'YRI'
     #             # 'NPCI'
+    #         ],
+    #         *[
+    #             # tf_feature for tf_feature in features_df.keys() if 'tf_gr' in tf_feature
+    #             # *list(_get_top_tf_features(top_n=20))
     #         ]
     #     ],
-    #     save_pref='tsne_important'
+    #     save_pref='topic/tsne_tf'
     # )
