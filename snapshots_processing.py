@@ -128,7 +128,10 @@ class BandData:
         return self.band_data[:, ch_id]
 
     def get_band_data_in_wl(self, target_wl: float) -> np.ndarray:
-        ch_id = [i for i, wl in enumerate(self.wave_lengths) if wl == target_wl][0]
+        # ch_id = [i for i, wl in enumerate(self.wave_lengths) if wl == target_wl][0]
+        target_wl = max(450., target_wl)
+        target_wl = min(870., target_wl)
+        ch_id = int((target_wl - 450.) / 4)
         return self.get_band_data_in_ch_id(ch_id=ch_id)
 
     def get_band_corr_df(self) -> pd.DataFrame:
