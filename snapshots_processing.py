@@ -371,8 +371,9 @@ class SnapshotMeta:
 
         # GLCM properties
         def features_by_angles(feature_name: str) -> dict:
-            features_vect = graycoprops(matrix_coocurrence, feature_name).flatten()
-            return {f"{wl}_tf_gr_{feature_name}_{angle}": tf for tf, angle in zip(features_vect, angles_degree)}
+            # features_vect = graycoprops(matrix_coocurrence, feature_name).flatten()
+            # return {f"{wl}_tf_gr_{feature_name}_{angle}": tf for tf, angle in zip(features_vect, angles_degree)}
+            return {f"{wl}_tf_gr_{feature_name}": graycoprops(matrix_coocurrence, feature_name).mean()}
 
         feature_keys = ['contrast', 'dissimilarity', 'homogeneity', 'energy', 'correlation']
 
