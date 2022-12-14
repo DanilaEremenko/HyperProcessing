@@ -10,9 +10,10 @@ from sklearn.manifold import TSNE
 from clf import clf_build
 from snapshots_processing import SnapshotMeta, BANDS_DICT
 import matplotlib.pyplot as plt
+import numpy as np
 
 font = {'family': 'Times New Roman',
-        'size': 14}
+        'size': 22}
 matplotlib.rc('font', **font)
 
 
@@ -310,11 +311,14 @@ def draw_tsne_matplot(features_df: pd.DataFrame, features: List[str], save_pref:
 
     features_df = features_df.reset_index(inplace=False)
     for class_name, color in zip(list(features_df['class'].unique()), CLASS_COLORS):
-        class_rows = features_df[features_df['class'] == class_name]
+        curr_class_df = features_df[features_df['class'] == class_name]
+        # class_centroid = curr_class_df[features].mean().reset_index()[0]
+        # class_distances = [np.linalg.norm(class_centroid - np.array(tup)) for tup in
+        #                    curr_class_df[features].itertuples(index=False)]
         plt.scatter(
-            tsne_arr[class_rows.index, 0],
-            tsne_arr[class_rows.index, 1],
-            label=class_name,
+            tsne_arr[curr_class_df.index, 0],
+            tsne_arr[curr_class_df.index, 1],
+            label=f"{class_name}",
             color=color,
             edgecolor="black",
             s=200
@@ -350,9 +354,12 @@ def draw_hp_glasses(
 
     fig = go.Figure()
 
+    class_names = ['health ds1', 'puccinia ds1', 'health ds2', 'puccinia ds 2']
+    class_names = list(reversed(class_names))
+
     for wl_id, wl in enumerate(wl_lengths):
-        for col_i, class_snapshots in enumerate(all_classes[::-1]):
-            for row_i, snapshot in enumerate(class_snapshots):
+        for class_i, class_snapshots in enumerate(all_classes[::-1]):
+            for snap_i, snapshot in enumerate(class_snapshots):
                 norm_x = snapshot.bands[bname].coordinates[:, 0] - min(snapshot.bands[bname].coordinates[:, 0])
                 norm_y = snapshot.bands[bname].coordinates[:, 1] - min(snapshot.bands[bname].coordinates[:, 1])
                 fig.add_trace(
@@ -360,18 +367,20 @@ def draw_hp_glasses(
                         visible=False,
                         # z=snapshot.bands['all'].get_too_low_pxs(wl=wl)[:,0],
                         z=snapshot.bands[bname].get_band_data_in_ch_id(ch_id=wl_id),
-                        x=norm_x + row_i * max_snap_width,
-                        y=norm_y + col_i * max_snap_height,
+                        x=norm_x + snap_i * max_snap_width,
+                        y=norm_y + class_i * max_snap_height,
                         hoverongaps=False
                     )
                 )
-                if wl_id == 0:
+                if wl_id == 0 and snap_i == 0:
                     fig.add_annotation(
-                        x=(norm_x + row_i * max_snap_width).max(),
-                        y=(norm_y + col_i * max_snap_height).max(),
+                        # x=(norm_x + snap_i * max_snap_width).max(),
+                        x=(-10 + snap_i * max_snap_width).max(),
+                        y=(norm_y + class_i * max_snap_height).max(),
                         xref="x",
                         yref="y",
-                        text=f"{snapshot.name}/"
+                        # text=f"{snapshot.name}/"
+                        text=class_names[class_i]
                         # f"[mean_pixel={snapshot.bands[bname].mean_in_pxs_by_ch.mean().round(2)}, "
                         # f"mean_dev={snapshot.bands[bname].mean_dev_in_px.round(2)}, "
                         # f"{snapshot.bands[bname].cl_features}]"
@@ -379,21 +388,21 @@ def draw_hp_glasses(
                         # f"highest_avg={snapshot.bands[bname].get_too_high_pxs().mean().round(2)}]"
                         ,
                         font=dict(
-                            family="Courier New, monospace",
-                            size=16,
+                            family="Times New Roman",
+                            size=30,
                             color="#ffffff"
                         ),
                         align="center",
                         bordercolor="#c7c7c7",
                         borderwidth=2,
                         borderpad=4,
-                        bgcolor="#ff7f0e",
+                        bgcolor=CLASS_COLORS[(class_i + 1) % 2],
                         opacity=0.8
                     )
 
-    for col_i, class_snapshots in enumerate(all_classes):
-        for row_i, snapshot in enumerate(class_snapshots):
-            fig.data[0 + col_i * len(class_snapshots) + row_i].visible = True
+    for class_i, class_snapshots in enumerate(all_classes):
+        for snap_i, snapshot in enumerate(class_snapshots):
+            fig.data[0 + class_i * len(class_snapshots) + snap_i].visible = True
 
     steps = []
     for wl_id, wl in enumerate(wl_lengths):
@@ -404,10 +413,10 @@ def draw_hp_glasses(
                 {"title": "Slider switched to wl: " + str(wl)}
             ],  # layout attribute
         }
-        for col_i, class_snapshots in enumerate(all_classes):
-            for row_i, snapshot in enumerate(class_snapshots):
+        for class_i, class_snapshots in enumerate(all_classes):
+            for snap_i, snapshot in enumerate(class_snapshots):
                 # Toggle i'th trace to "visible"
-                step["args"][0]["visible"][wl_id + col_i * len(class_snapshots) + row_i] = True
+                step["args"][0]["visible"][wl_id + class_i * len(class_snapshots) + snap_i] = True
 
         steps.append(step)
 
