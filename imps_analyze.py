@@ -43,7 +43,7 @@ def get_all_imps_df() -> pd.DataFrame:
 
     all_df = pd.merge(left=imps_df1, right=imps_df2, left_on='wl', right_on='wl')
 
-    all_df.rename(columns={'imp_x': 'importance exp 2', 'imp_y': 'importance exp 3'}, inplace=True)
+    all_df.rename(columns={'imp_x': 'importance exp 1', 'imp_y': 'importance exp 2'}, inplace=True)
 
     all_df = all_df.iloc[:-1]
 
@@ -58,7 +58,7 @@ ALL_DF = get_all_imps_df()
 def _draw_imps_plotly():
     fig = go.Figure()
 
-    for key in ['importance exp 2', 'importance exp 3']:
+    for key in ['importance exp 1', 'importance exp 2']:
         fig.add_trace(
             go.Scatter(x=ALL_DF['wl'], y=ALL_DF[key], name=key),
         )
@@ -81,7 +81,7 @@ def _draw_imps_plotly():
 def _draw_imps_matplotlib():
     plt.rcParams["figure.figsize"] = (9, 6)
 
-    for key in ['importance exp 2', 'importance exp 3']:
+    for key in ['importance exp 1', 'importance exp 2']:
         plt.plot(ALL_DF['wl'], ALL_DF[key], label=key)
 
     plt.xlabel("wavelengths (nm)")
@@ -117,21 +117,21 @@ def get_imps_df_by_window():
 
 def get_imps_df_by_deviation() -> pd.DataFrame:
     df = ALL_DF.copy()
-    df['mae'] = (df['importance exp 2'] - df['importance exp 3']).abs()
+    df['mae'] = (df['importance exp 1'] - df['importance exp 2']).abs()
     return df[['wl', 'mae']].sort_values('mae', ascending=False)
 
 
 def get_imps_df_by_sum() -> pd.DataFrame:
     df = ALL_DF.copy()
-    df['sum'] = df['importance exp 2'] + df['importance exp 3']
+    df['sum'] = df['importance exp 1'] + df['importance exp 2']
     return df[['wl', 'sum']].sort_values('sum', ascending=True)
 
 
 def get_imps_by_sum_and_closeness():
     df = ALL_DF.copy()
-    df['mae'] = (df['importance exp 2'] - df['importance exp 3']).abs()
+    df['mae'] = (df['importance exp 1'] - df['importance exp 2']).abs()
     df['mae_normalized'] = df['mae'] / df['mae'].max()
-    df['sum'] = df['importance exp 2'] + df['importance exp 3']
+    df['sum'] = df['importance exp 1'] + df['importance exp 2']
     df['smart'] = df['sum'] * (1 - df['mae_normalized'])
     return df[['wl', 'smart']].sort_values('smart', ascending=False)
 
@@ -172,13 +172,15 @@ def _clf_build(fit_df: pd.DataFrame, eval_df: pd.DataFrame, x_keys: List[str]):
 
 
 def draw_head_importance_dynamic(imp_wls: List[float], x_label_postf: str, save_pref=None):
-    f1_dict_exp1 = {'train': [], 'test': [], 'eval': []}
-    f1_dict_exp2 = {'train': [], 'test': [], 'eval': []}
+    kappa_dict_exp1 = {'train': [], 'test': [], 'eval': []}
+    kappa_dict_exp2 = {'train': [], 'test': [], 'eval': []}
 
     n_important_list = [n_important for n_important in range(1, len(imp_wls), 1)]
 
-    df2 = FEATURES_DF.iloc[0:400]
-    df3 = FEATURES_DF.iloc[400:800]
+    # df2 = FEATURES_DF.iloc[0:400]
+    # df3 = FEATURES_DF.iloc[400:800]
+    df2 = pd.concat([FEATURES_DF.iloc[0:200], FEATURES_DF.iloc[400:600]])
+    df3 = pd.concat([FEATURES_DF.iloc[600:800], FEATURES_DF.iloc[900:1100]])
     for n_important in n_important_list:
         print(f"build statistic for {n_important} head important features")
 
@@ -187,23 +189,23 @@ def draw_head_importance_dynamic(imp_wls: List[float], x_label_postf: str, save_
                            for wl in imp_wls[:n_important]]
 
         clf_results = _clf_build(fit_df=df2, eval_df=df3, x_keys=head_n_features)
-        f1_dict_exp1['train'].append(clf_results['train_f1_phyto'])
-        f1_dict_exp1['test'].append(clf_results['test_f1_phyto'])
-        f1_dict_exp1['eval'].append(clf_results['eval_f1_phyto'])
+        kappa_dict_exp1['train'].append(clf_results['train_kappa'])
+        kappa_dict_exp1['test'].append(clf_results['test_kappa'])
+        kappa_dict_exp1['eval'].append(clf_results['eval_kappa'])
 
         clf_results = _clf_build(fit_df=df3, eval_df=df2, x_keys=head_n_features)
-        f1_dict_exp2['train'].append(clf_results['train_f1_phyto'])
-        f1_dict_exp2['test'].append(clf_results['test_f1_phyto'])
-        f1_dict_exp2['eval'].append(clf_results['eval_f1_phyto'])
+        kappa_dict_exp2['train'].append(clf_results['train_kappa'])
+        kappa_dict_exp2['test'].append(clf_results['test_kappa'])
+        kappa_dict_exp2['eval'].append(clf_results['eval_kappa'])
 
-    for metrics_dict, split_name in zip([f1_dict_exp1, f1_dict_exp2], ['split 1', 'split 2']):
+    for metrics_dict, split_name in zip([kappa_dict_exp1, kappa_dict_exp2], ['split 1', 'split 2']):
         args = dict(
             x_list=[n_important_list for i in range(len(metrics_dict))],
             y_list=list(metrics_dict.values()),
-            meta_list=[[str(wl) for wl in imp_wls] for i in range(len(f1_dict_exp1))],
+            meta_list=[[str(wl) for wl in imp_wls] for i in range(len(kappa_dict_exp1))],
             labels=list(metrics_dict.keys()),
             x_label=f'number of head important features {x_label_postf}',
-            y_label='f1_score',
+            y_label='kappa index',
             title=split_name,
             save_pref=save_pref if save_pref is None else f"{save_pref} {split_name}"
         )
