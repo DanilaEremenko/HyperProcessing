@@ -129,11 +129,12 @@ def clf_build(
     def get_metrics_dict(name: str, y_true: np.ndarray, y_pred: np.ndarray) -> dict:
         return {
             f'{name}_accuracy': metrics.accuracy_score(y_true=y_true, y_pred=y_pred).__round__(2),
-            f'{name}_auc': metrics.auc(*metrics.roc_curve(
-                y_score=str_to_int(y_pred), y_true=str_to_int(y_true), pos_label=2)[:2]).__round__(2),
-            f'{name}_f1_health': metrics.f1_score(y_true=y_true, y_pred=y_pred, pos_label="health").round(2),
+            # f'{name}_auc': metrics.auc(*metrics.roc_curve(
+            #     y_score=str_to_int(y_pred), y_true=str_to_int(y_true), pos_label=2)[:2]).__round__(2),
+            f'{name}_kappa': metrics.cohen_kappa_score(y_true, y_pred).round(2),
+            # f'{name}_f1_health': metrics.f1_score(y_true=y_true, y_pred=y_pred, pos_label="health").round(2),
             f'{name}_f1_phyto': metrics.f1_score(y_true=y_true, y_pred=y_pred, pos_label="phyto").round(2),
-            f'{name}_confusion': metrics.confusion_matrix(y_true=y_true, y_pred=y_pred, labels=["health", "phyto"]),
+            f'{name}_confusion': metrics.confusion_matrix(y_true=y_true, y_pred=y_pred, labels=["health", "phyto"])
         }
 
     return {
