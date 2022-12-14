@@ -1,5 +1,5 @@
 import os
-from math import sin
+from math import sin, sqrt
 from typing import List, Dict, Tuple
 import numpy as np
 import pandas as pd
@@ -398,22 +398,36 @@ class SnapshotMeta:
             return R_HASH[wl]
 
         return {
+            # 'ARI': 1 / R(550) - 1 / R(702),  # green right & red middle
+            # 'BGI': R(450) / R(550),  # blue left & green right
+            # 'BRI': R(450) / R(690),  # blue left & red middle
+            # # 'CAI': R(450) / R(690),  # blue left & red middle
+            #
+            # 'CRI1': 1 / R(510) - 1 / R(550),  # green left & green right
+            # 'CRI2': 1 / R(510) - 1 / R(702),  # green left & red middle
+            #
+            # 'CSI1': R(694) / R(450),  # red middle & blue left
+            # 'CSI2': R(694) / R(762),  # red middle & red right
+            #
+            # 'CUR': R(674) * R(550) / R(682) ** 2,  # red middle & green right
+            # 'gNDVI': (R(750) - R(550)) / (R(750) + R(550)),  # red right & green right
+            # 'hNDVI': (R(826) - R(666)) / (R(826) + R(666)),  # infr left & red left
+            # 'NPCI': (R(682) - R(450)) / R(682) + R(450),
 
-            'ARI': 1 / R(550) - 1 / R(702),  # green right & red middle
-            'BGI': R(450) / R(550),  # blue left & green right
-            'BRI': R(450) / R(690),  # blue left & red middle
-            # 'CAI': R(450) / R(690),  # blue left & red middle
-
-            'CRI1': 1 / R(510) - 1 / R(550),  # green left & green right
-            'CRI2': 1 / R(510) - 1 / R(702),  # green left & red middle
-
-            'CSI1': R(694) / R(450),  # red middle & blue left
-            'CSI2': R(694) / R(762),  # red middle & red right
-
-            'CUR': R(674) * R(550) / R(682) ** 2,  # red middle & green right
-            'gNDVI': (R(750) - R(550)) / (R(750) + R(550)),  # red right & green right
-            'hNDVI': (R(826) - R(666)) / (R(826) + R(666)),  # infr left & red left
-            'NPCI': (R(682) - R(450)) / R(682) + R(450)
+            'PRI': (R(570) - R(534)) / (R(570) + R(534)),
+            'PHRI': (R(550) - R(534)) / (R(570) + R(534)),
+            'NDVI': (R(830) - R(674)) / (R(830) + R(674)),
+            'MSR': (R(800) / R(670) - 1) / sqrt(R(800) / R(670) + 1),
+            'TVI': 0.5 * ((120 * R(750) - R(550)) - 200 * (R(670) - R(550))),
+            'SIPI': (R(800) - R(445)) / (R(800) - R(680)),
+            'NPCI': (R(680) - R(430)) / (R(680) + R(430)),
+            'ARI': R(550) ** (-1) - R(700) ** (-1),
+            'GI': R(554) / R(667),
+            'TCARI': 3 * ((R(700) - R(675)) - 0.2 * ((R(700) - R(500)) / (R(700) - R(670)))),
+            'PSRI': (R(680) - R(500)) / R(750),
+            'RVSI': (R(712) + R(752)) / 2 - R(732),
+            'NRI': (R(570) - R(670)) / (R(570) + R(670)),
+            'YRI': ((R(730) - R(419)) / (R(730) + R(419))) + 0.5 * R(736)
         }
 
     def get_sep_band_features(self):
@@ -425,7 +439,7 @@ class SnapshotMeta:
 
             curr_band_features = {
                 'all_pixels_mean': band_data.mean_in_pxs_by_ch.mean(),
-                'all_pixels_std': band_data.mean_dev_in_px,
+                # 'all_pixels_std': band_data.mean_dev_in_px,
 
                 # 'min_max_diff': (band_data.mean_in_pxs_by_ch.max() - band_data.mean_in_pxs_by_ch.min()) /
                 #                 (band_data.mean_in_pxs_by_ch.max() + band_data.mean_in_pxs_by_ch.min()),
