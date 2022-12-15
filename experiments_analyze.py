@@ -3,7 +3,7 @@ from typing import List
 import pandas as pd
 
 from drawing import draw_hp_glasses
-from experiments import WHEAT_ALL_CLEAR_EXP, DYNAMIC_CHECK
+from experiments import WHEAT_ALL_CLEAR_EXP, DYNAMIC_CHECK, DYNAMIC_CHECK_NEW, WHEAT_ALL_JUSTIFIED_EXP
 from snapshots_processing import parse_classes, SnapshotMeta, WLS
 import matplotlib
 
@@ -29,8 +29,8 @@ classes_features_dict = parse_classes(
 # draw_hp_glasses(
 #     all_classes=[classes_features_dict[key][0:2] for key in classes_features_dict.keys()],
 #     classes_names=[key for key in classes_features_dict.keys()],
-#     bname='YRI',
-#     res_path=f'yellow_rust.html'
+#     bname='all',
+#     res_path=f'all.html'
 # )
 
 
@@ -73,16 +73,18 @@ def agg_curve(snapshots: List[SnapshotMeta]):
 # plt.show()
 
 
+classes_prefs = ['health', 'puccinia']
+classes_colors = ['#96E637', '#FF9999', '#FFE90C', '#8B0DDD']
+assert len(classes_colors) >= len(classes_prefs)
 # days = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
 days = [4, 5, 6, 7, 8]
 # days = [0, 2, 3, 4, 5, 6, 7, 8]
 
 fig, axes = plt.subplots(ncols=len(days), nrows=1, figsize=(len(days) * 9, 6))
 for day, ax in zip(days, axes):
-    health_curve = agg_curve(classes_features_dict[f'health day {day}'])
-    puccina_curve = agg_curve(classes_features_dict[f'puccinia day {day}'])
-    ax.plot(WLS, health_curve, color='#96E637', label='health', linewidth=4)
-    ax.plot(WLS, puccina_curve, color='#FF9999', label='puccina', linewidth=4)
+    for class_pref, class_color in zip(classes_prefs, classes_colors):
+        curr_curve = agg_curve(classes_features_dict[f'{class_pref} day {day}'])
+        ax.plot(WLS, curr_curve, color=class_color, label=class_pref, linewidth=4)
     ax.legend(loc="lower right")
     ax.set_title(f'day {day}')
     ax.set_ylim(4000, 11_000)
@@ -90,5 +92,5 @@ for day, ax in zip(days, axes):
 
 plt.tight_layout()
 
-plt.savefig('topic/exp3_days_fair.png')
+plt.savefig('topic/exp2_days_fair.png')
 plt.show()
