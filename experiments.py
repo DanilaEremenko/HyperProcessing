@@ -161,3 +161,23 @@ DYNAMIC_CHECK = {
     # },
 
 }
+
+DYNAMIC_CHECK_NEW = {
+    **{
+        f'puccinia new day {i}': [f'csv/sep-wheat-new-1/wheat-puccinia/wheat-puccinia-{i}']
+        for i in [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+    },
+    **{
+        f'health new day {i}': [f'csv/sep-wheat-new-1/wheat-control/wheat-control-{i}']
+        for i in [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+    },
+
+    **{
+        f'puccinia day {i}': [f'csv/sep-wheat-1/wheat-puccinia/wheat-puccinia-{i}']
+        for i in [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+    },
+    **{
+        f'health day {i}': [f'csv/sep-wheat-1/wheat-control/wheat-control-{i}']
+        for i in [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+    }
+}
