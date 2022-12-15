@@ -157,10 +157,11 @@ if __name__ == '__main__':
     clf_build(
         # fit_df=pd.concat([features_df.iloc[800:1000], features_df.iloc[1300:1500]]),
         # eval_df=pd.concat([features_df.iloc[1600:1800], features_df.iloc[2000:2200]]),
-        eval_df=pd.concat([features_df.iloc[0:200], features_df.iloc[400:600]]),
-        fit_df=pd.concat([features_df.iloc[600:800], features_df.iloc[900:1100]]),
-        # fit_df=features_df.iloc[0:600],
-        # eval_df=features_df.iloc[600:1200],
+        # eval_df=pd.concat([features_df.iloc[0:200], features_df.iloc[400:600]]),
+        # fit_df=pd.concat([features_df.iloc[600:800], features_df.iloc[900:1100]]),
+        fit_df=pd.concat([features_df.iloc[0:200], features_df.iloc[600:800]]),
+        eval_df=pd.concat([features_df.iloc[1000:1200], features_df.iloc[1500:1700]]),
+
         # features_df=features_df.iloc[[i for i, name in enumerate(list(features_df['dir']))
         #                               if int(name[-1]) in [4, 5, 6, 7]]],
         # features_df.iloc[[i for i, name in enumerate(list(features_df['dir']))
