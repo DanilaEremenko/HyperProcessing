@@ -354,8 +354,8 @@ def draw_hp_glasses(
 
     fig = go.Figure()
 
-    class_names = ['health ds1', 'puccinia ds1', 'health ds2', 'puccinia ds 2']
-    class_names = list(reversed(class_names))
+    draw_class_names = ['health ds1', 'phyto ds1', 'health ds2', 'phyto ds 2']
+    draw_class_names = list(reversed(draw_class_names))
 
     for wl_id, wl in enumerate(wl_lengths):
         for class_i, class_snapshots in enumerate(all_classes[::-1]):
@@ -380,7 +380,7 @@ def draw_hp_glasses(
                         xref="x",
                         yref="y",
                         # text=f"{snapshot.name}/"
-                        text=class_names[class_i]
+                        text=draw_class_names[class_i]
                         # f"[mean_pixel={snapshot.bands[bname].mean_in_pxs_by_ch.mean().round(2)}, "
                         # f"mean_dev={snapshot.bands[bname].mean_dev_in_px.round(2)}, "
                         # f"{snapshot.bands[bname].cl_features}]"
