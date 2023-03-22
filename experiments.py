@@ -1,35 +1,26 @@
 POTATO_OLD = {
-    'health': [
-        'csv/control/gala-control-bp-1_000',
-        'csv/control/gala-control-bp-2_000',
-        'csv/control/gala-control-bp-3_000',
-        'csv/control/gala-control-bp-4_000',
+    'potato health 1': [
+        f'csv/control/gala-control-bp-{day}_000'
+        for day in [1, 2, 3, 4]
     ],
-    'phyto1': [
-        'csv/phytophthora/gala-phytophthora-bp-1_000',
-        'csv/phytophthora/gala-phytophthora-bp-5-1_000',
-        # 'csv/phytophthora-ps-2_2-5_2/gala-phytophthora-2_2-5_2-1_000'
-    ],
-    'phyto2': [
-        'csv/phytophthora/gala-phytophthora-bp-2_000',
-        'csv/phytophthora/gala-phytophthora-bp-6-2_000',
-        # 'csv/phytophthora-ps-2_2-5_2/gala-phytophthora-2_2-5_2-2_000'
+    'potato phyto1': [
+        *[
+            f'csv/phytophthora/gala-phytophthora-bp-{day}_000'
+            for day in [1, 2, 3, 4]
+        ]
     ]
 }
 
 POTATO_NEW = {
-    'health new': [
-        'csv/potato-singles-1/singles-1/gala-control/gala-control-0_000',
-        'csv/potato-singles-1/singles-1/gala-control/gala-control-1_000',
+    'potato health 2': [
+        f'csv/potato-singles-1/singles-1/gala-control/gala-control-{day}_000'
+        for day in [0, 1, 3, 4, 5, 6]
+
     ],
-    'phyto1 new': [
-        'csv\potato-singles-1\singles-1\gala-phytophthora\gala-phytophthora-0_000',
-        'csv\potato-singles-1\singles-1\gala-phytophthora\gala-phytophthora-5_000',
+    'potato phyto2': [
+        f'csv\potato-singles-1\singles-1\gala-phytophthora\gala-phytophthora-{day}_000'
+        for day in [0, 1, 3, 4, 5, 6]
     ],
-    'phyto2 new': [
-        'csv\potato-singles-1\singles-1\gala-phytophthora\gala-phytophthora-1_000',
-        'csv\potato-singles-1\singles-1\gala-phytophthora\gala-phytophthora-6_000',
-    ]
 }
 
 WHEAT_ALL = {
@@ -130,7 +121,7 @@ WHEAT_ALL_JUSTIFIED_EXP = {
     ]
 }
 
-DYNAMIC_CHECK = {
+DYNAMIC_WHEAT_CHECK = {
     # **{
     #     f'puccinia day {i}': [f'csv/sep-wheat-1/wheat-puccinia/wheat-puccinia-{i}']
     #     for i in [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
@@ -162,7 +153,7 @@ DYNAMIC_CHECK = {
 
 }
 
-DYNAMIC_CHECK_NEW = {
+DYNAMIC_WHEAT_NEW_ALGH = {
     **{
         f'puccinia new day {i}': [f'csv/sep-wheat-new-1/wheat-puccinia/wheat-puccinia-{i}']
         for i in [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
@@ -180,4 +171,33 @@ DYNAMIC_CHECK_NEW = {
         f'health day {i}': [f'csv/sep-wheat-1/wheat-control/wheat-control-{i}']
         for i in [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
     }
+}
+
+DYNAMIC_POTATO_CHECK_FULL = {
+    # **{
+    #     f'potato health day {day}': [f'csv/control/gala-control-bp-{day}_000']
+    #     for day in [1, 2, 3, 4]
+    # },
+    # **{
+    #     f'potato phyto day {day}':
+    #         [
+    #             *[
+    #                 f'csv/phytophthora/gala-phytophthora-bp-{day}_000'
+    #             ],
+    #             *[
+    #                 f'csv/phytophthora/gala-phytophthora-bp-{day + 4}-{day}_000'
+    #             ]
+    #         ]
+    #     for day in [1, 2, 3, 4]
+    # },
+
+    **{
+        f'potato health day {day}': [f'csv/potato-singles-1/singles-1/gala-control/gala-control-{day}_000']
+        for day in [0, 1, 3, 4, 5, 6, 7]
+    },
+    **{
+        f'potato phyto day {day}': [f'csv\potato-singles-1\singles-1\gala-phytophthora\gala-phytophthora-{day}_000']
+        for day in [0, 1, 3, 4, 5, 6, 7]
+    }
+
 }
