@@ -1,10 +1,12 @@
+import os
+import cv2
 import random
-from typing import Tuple, List
-
+from typing import Tuple
 import pandas as pd
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import torchvision
 from torch.nn import Dropout
 from torchvision import transforms
 from torch.utils.data import Dataset, DataLoader
@@ -20,7 +22,7 @@ from experiments import WHEAT_ALL_JUSTIFIED_EXP
 
 
 class HyperDataset(Dataset):
-    def __init__(self, x_data, y_data, device='cpu', y_to_long=False):
+    def __init__(self, x_data, y_data, y_to_long=False):
         self.x_data = torch.from_numpy(x_data).float()
         self.y_data = torch.from_numpy(y_data)
         self.y_data = self.y_data.long() if y_to_long else self.y_data.float()
@@ -28,16 +30,15 @@ class HyperDataset(Dataset):
         self.x_data = torch.nn.functional.normalize(self.x_data)
 
         self.len = len(self.x_data)  # Size of data
-        self.device = device
 
     def __getitem__(self, index):
-        return self.x_data[index].to(self.device), self.y_data[index].to(self.device)
+        return self.x_data[index], self.y_data[index]
 
     def __len__(self):
         return self.len
 
 
-def get_dataloaders() -> Tuple[DataLoader, DataLoader]:
+def get_hp_dataloaders() -> Tuple[DataLoader, DataLoader]:
     classes_features_dict = parse_classes(
         classes_dict={
             **WHEAT_ALL_JUSTIFIED_EXP
@@ -94,7 +95,7 @@ def get_dataloaders() -> Tuple[DataLoader, DataLoader]:
     batch_size = 4
 
     trainloader = torch.utils.data.DataLoader(
-        dataset=HyperDataset(x_data=x_train, y_data=y_train, device=device),
+        dataset=HyperDataset(x_data=x_train, y_data=y_train),
         batch_size=batch_size,
         shuffle=True,
         num_workers=0,
@@ -102,10 +103,50 @@ def get_dataloaders() -> Tuple[DataLoader, DataLoader]:
     )
 
     testloader = torch.utils.data.DataLoader(
-        dataset=HyperDataset(x_data=x_test, y_data=y_test, device=device),
+        dataset=HyperDataset(x_data=x_test, y_data=y_test),
         batch_size=batch_size,
         shuffle=True,
         num_workers=0
+    )
+
+    return trainloader, testloader
+
+
+class ImgDataset(Dataset):
+    def __init__(self, root: str):
+        self.img_set = torchvision.datasets.ImageFolder(root=root)
+
+        # TODO possible RAM utilization instead of ImageFolder
+        # files = [f"{dir}/{file}" for dir, subdirs, files in os.walk(root) for file in files]
+        # self.x_data = np.array([cv2.imread(file) for file in files])
+        # self.y_data = np.array([0 if 'dog' in file else 1 for file in files])
+
+    def __getitem__(self, index):
+        x_data = np.swapaxes(np.array(self.img_set[index][0].resize((100, 100)), dtype='float32'), 0, 2)
+        y_data = np.atleast_1d(self.img_set[index][1])
+
+        x_data = torch.from_numpy(x_data).float()
+        y_data = torch.from_numpy(y_data).float()
+
+        return x_data, y_data
+
+    def __len__(self):
+        return len(self.img_set)
+
+
+def get_img_dataloaders() -> Tuple[DataLoader, DataLoader]:
+    batch_size = 4
+
+    trainset = ImgDataset(root='C:/Users/danil/Downloads/binary_img_ds/train')
+    trainloader = torch.utils.data.DataLoader(
+        trainset, batch_size=batch_size,
+        shuffle=True, num_workers=0
+    )
+
+    testset = ImgDataset(root='C:/Users/danil/Downloads/binary_img_ds/val')
+    testloader = torch.utils.data.DataLoader(
+        testset, batch_size=batch_size,
+        shuffle=True, num_workers=0
     )
 
     return trainloader, testloader
@@ -139,7 +180,8 @@ class EpochMetrics:
 class Net(nn.Module):
     def __init__(
             self, channels_num: int, y_size: int, x_size: int,
-            lr: float, activation: str, verbose=False
+            lr: float, activation: str, dropout: float,
+            verbose=False,
     ):
         print(f"Building cnn for data with shape = [{channels_num}, {y_size}, {x_size}]")
         super().__init__()
@@ -157,9 +199,9 @@ class Net(nn.Module):
 
         self.conv_layers = nn.ModuleList(
             [
-                Dropout(0.25),
+                Dropout(dropout),
                 ConvBlock(in_channels=channels_num, out_channels=8, kernel_size=3, act_func=self.act_func),
-                Dropout(0.25),
+                Dropout(dropout),
                 ConvBlock(in_channels=8, out_channels=16, kernel_size=3, act_func=self.act_func),
                 # ConvBlock(in_channels=16, out_channels=32, kernel_size=3)
             ]
@@ -172,7 +214,7 @@ class Net(nn.Module):
 
         out_channels = self.conv_layers[-1].out_channels if len(self.conv_layers) != 0 else channels_num
 
-        self.dropout = nn.Dropout(p=0.25)
+        self.fc_dropout = nn.Dropout(p=dropout)
 
         self.fc1 = nn.Linear(int(x_size * y_size * out_channels), 120)
         self.fc2 = nn.Linear(120, 84)
@@ -197,9 +239,9 @@ class Net(nn.Module):
         for i, conv_layer in enumerate(self.conv_layers):
             x = conv_layer(x)
         x = torch.flatten(x, 1)  # flatten all dimensions except batch
-        x = self.act_func(self.fc1(self.dropout(x)))
-        x = self.act_func(self.fc2(self.dropout(x)))
-        x = self.fc3(self.dropout(x))
+        x = self.act_func(self.fc1(self.fc_dropout(x)))
+        x = self.act_func(self.fc2(self.fc_dropout(x)))
+        x = self.fc3(self.fc_dropout(x))
         return x
 
     def fit(self):
@@ -217,9 +259,14 @@ class Net(nn.Module):
             train_f1_sum = 0.0
             train_matrix = np.zeros((2, 2))
             for i, data in enumerate(trainloader):
+                if i > 500:
+                    break
                 # get the inputs; data is a list of [inputs, labels]
                 inputs, labels = data
                 inputs = transforms(inputs)
+
+                inputs = inputs.to(device)
+                labels = labels.to(device)
 
                 # zero the parameter gradients
                 self.optimizer.zero_grad()
@@ -249,7 +296,11 @@ class Net(nn.Module):
             test_f1_sum = 0.0
             test_matrix = np.zeros((2, 2))
             for i, data in enumerate(testloader):
+                if i > 125:
+                    break
                 inputs, labels = data
+                inputs = inputs.to(device)
+                labels = labels.to(device)
 
                 # forward + backward + optimize
                 with torch.no_grad():
@@ -322,7 +373,8 @@ if __name__ == '__main__':
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     print(f"{device} device choose")
 
-    trainloader, testloader = get_dataloaders()
+    trainloader, testloader = get_img_dataloaders()
+    # trainloader, testloader = get_hp_dataloaders()
 
     transforms = torch.nn.Sequential(
         # transforms.RandomRotation(degrees=90),
@@ -335,12 +387,12 @@ if __name__ == '__main__':
     classes = ('health', 'phyto')
 
     params_grid = ParameterGrid(
-        {'lr': (0.01, 0.001, 0.0001), 'activation': ['relu', 'tanh']}
+        {'lr': (0.001, 0.0001), 'activation': ['relu', 'tanh'], 'dropout': [0.1, 0.25]}
     )
     res_list = []
     for i, params_dict in enumerate(params_grid):
         print(f'{i + 1}/{len(params_grid)}: fitting scenario ')
-        net = Net(*trainloader.dataset[0][0].shape, **params_dict)
+        net = Net(*np.array(trainloader.dataset[0][0]).shape, **params_dict, verbose=True)
         net.fit()
         res_list.append(
             {
