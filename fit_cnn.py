@@ -148,6 +148,9 @@ class ImgDatasetRamUtilizer(Dataset):
         self.x_data = torch.from_numpy(x_data).float()
         self.y_data = torch.from_numpy(y_data).float()
 
+        # normalization
+        self.x_data /= 255
+
     def __getitem__(self, index):
         return self.x_data[index], self.y_data[index]
 
