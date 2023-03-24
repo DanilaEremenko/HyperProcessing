@@ -401,7 +401,7 @@ class SnapshotMeta:
             # 'ARI': 1 / R(550) - 1 / R(702),  # green right & red middle
             # 'BGI': R(450) / R(550),  # blue left & green right
             # 'BRI': R(450) / R(690),  # blue left & red middle
-            # # 'CAI': R(450) / R(690),  # blue left & red middle
+            # 'CAI': R(450) / R(690),  # blue left & red middle
             #
             # 'CRI1': 1 / R(510) - 1 / R(550),  # green left & green right
             # 'CRI2': 1 / R(510) - 1 / R(702),  # green left & red middle
@@ -414,6 +414,21 @@ class SnapshotMeta:
             # 'hNDVI': (R(826) - R(666)) / (R(826) + R(666)),  # infr left & red left
             # 'NPCI': (R(682) - R(450)) / R(682) + R(450),
 
+            # TOPIC STUFF
+            'CRI1': 1 / R(510) - 1 / R(550),  # green left & green right
+            'CRI2': 1 / R(510) - 1 / R(702),  # green left & red middle
+            'LCI': (R(850) - R(710)) / (R(850) + R(682)),
+
+            'PSSRa': R(802) / R(678),
+            'PSSRb': R(802) / R(650),
+            'PSSRc': R(802) / R(500),
+
+            'SR(Chla)': R(674) / R(702),
+            'SR(Chlb)': R(674) / (R(650) * R(702)),
+            'SR(Chlb2)': R(670) / R(710),
+            'SR(Chltot)': R(762) / R(502),
+
+            # FOR CLASSIFICATION FROM PAPERS
             'PRI': (R(570) - R(534)) / (R(570) + R(534)),
             'PHRI': (R(550) - R(534)) / (R(570) + R(534)),
             'NDVI': (R(830) - R(674)) / (R(830) + R(674)),
