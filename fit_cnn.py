@@ -134,16 +134,37 @@ class ImgDataset(Dataset):
         return len(self.img_set)
 
 
+class ImgDatasetRamUtilizer(Dataset):
+    def __init__(self, root: str):
+        img_set = torchvision.datasets.ImageFolder(root=root)
+        x_data = np.zeros(shape=(len(img_set), 3, 100, 100))
+        y_data = np.zeros(shape=(len(img_set), 1))
+
+        for index in range(len(img_set)):
+            print(f'loading {index}/{len(img_set)}')
+            x_data[index] = np.swapaxes(np.array(img_set[index][0].resize((100, 100)), dtype='float32'), 0, 2)
+            y_data[index] = img_set[index][1]
+
+        self.x_data = torch.from_numpy(x_data).float()
+        self.y_data = torch.from_numpy(y_data).float()
+
+    def __getitem__(self, index):
+        return self.x_data[index], self.y_data[index]
+
+    def __len__(self):
+        return len(self.x_data)
+
+
 def get_img_dataloaders() -> Tuple[DataLoader, DataLoader]:
     batch_size = 4
 
-    trainset = ImgDataset(root='C:/Users/danil/Downloads/binary_img_ds/train')
+    trainset = ImgDatasetRamUtilizer(root='data/binary_img_ds/train')
     trainloader = torch.utils.data.DataLoader(
         trainset, batch_size=batch_size,
         shuffle=True, num_workers=0
     )
 
-    testset = ImgDataset(root='C:/Users/danil/Downloads/binary_img_ds/val')
+    testset = ImgDatasetRamUtilizer(root='data/binary_img_ds/val')
     testloader = torch.utils.data.DataLoader(
         testset, batch_size=batch_size,
         shuffle=True, num_workers=0
@@ -203,7 +224,8 @@ class Net(nn.Module):
                 ConvBlock(in_channels=channels_num, out_channels=8, kernel_size=3, act_func=self.act_func),
                 Dropout(dropout),
                 ConvBlock(in_channels=8, out_channels=16, kernel_size=3, act_func=self.act_func),
-                # ConvBlock(in_channels=16, out_channels=32, kernel_size=3)
+                Dropout(dropout),
+                ConvBlock(in_channels=16, out_channels=32, kernel_size=3, act_func=self.act_func)
             ]
         )
 
@@ -259,6 +281,9 @@ class Net(nn.Module):
             train_f1_sum = 0.0
             train_matrix = np.zeros((2, 2))
             for i, data in enumerate(trainloader):
+                if self.verbose:
+                    print(f'{len(trainloader)}/{i}')
+
                 if i > 500:
                     break
                 # get the inputs; data is a list of [inputs, labels]
