@@ -89,7 +89,7 @@ for ax, index_name in zip(axes, indexes):
         ax.legend(loc="lower right")
         ax.set_xlabel('day')
         ax.set_ylabel(index_name)
-        res_list[index_name] = day_indexes
+        res_list[f"{index_name}_{class_pref}"] = day_indexes
 
 fig.tight_layout()
 
