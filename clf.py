@@ -102,7 +102,7 @@ def clf_build(
                 common_args = {'max_iter': [1e5], 'random_state': [16]}
                 param_grid = [
                     {'C': [1e0, 1e1, 1e2, 1e3], 'kernel': ['linear'], **common_args},
-                    {'C': [1e0, 1e1, 1e2, 1e3], 'gamma': [1e-1, 1e-2, 1e-3, 1e-4], 'kernel': ['rbf'], **common_args},
+                    {'C': [1e0, 1e1, 1e2, 1e3], 'gamma': [1e-1, 1e-2, 1e-3, 1e-4],'kernel': ['rbf', 'poly', 'sigmoid'], **common_args},
                 ]
                 clf_grid = GridSearchCV(SVC(), param_grid)
                 clf_grid.fit(X=scaler.transform(x_fit), y=y_fit)
