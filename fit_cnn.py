@@ -111,6 +111,14 @@ def get_hp_dataloaders() -> Tuple[DataLoader, DataLoader]:
         num_workers=0
     )
 
+    print('train distribution')
+    for class_i, class_name in enumerate(classes):
+        print(f'{class_name} num = {len(trainset.y_data[trainset.y_data == class_i])}')
+
+    print('test distribution')
+    for class_i, class_name in enumerate(classes):
+        print(f'{class_name} num = {len(testset.y_data[testset.y_data == class_i])}')
+
     return trainloader, testloader
 
 
@@ -137,15 +145,19 @@ class ImgDataset(Dataset):
 
 
 class ImgDatasetRamUtilizer(Dataset):
-    def __init__(self, root: str):
+    def __init__(self, root: str, max_images=None):
         img_set = torchvision.datasets.ImageFolder(root=root)
-        x_data = np.zeros(shape=(len(img_set), 3, 100, 100))
-        y_data = np.zeros(shape=(len(img_set), 1))
 
-        for index in range(len(img_set)):
-            print(f'loading {index}/{len(img_set)}')
-            x_data[index] = np.swapaxes(np.array(img_set[index][0].resize((100, 100)), dtype='float32'), 0, 2)
-            y_data[index] = img_set[index][1]
+        img_num = max_images if max_images is not None else len(img_set)
+
+        x_data = np.zeros(shape=(img_num, 3, 100, 100))
+        y_data = np.zeros(shape=(img_num, 1))
+
+        for index in range(img_num):
+            print(f'loading {index}/{img_num}')
+            curr_x, curr_y = img_set[index] if max_images is None else random.choice(img_set)
+            x_data[index] = np.swapaxes(np.array(curr_x.resize((100, 100)), dtype='float32'), 0, 2)
+            y_data[index] = curr_y
 
         self.x_data = torch.from_numpy(x_data).float()
         self.y_data = torch.from_numpy(y_data).float()
@@ -163,17 +175,25 @@ class ImgDatasetRamUtilizer(Dataset):
 def get_img_dataloaders() -> Tuple[DataLoader, DataLoader]:
     batch_size = 4
 
-    trainset = ImgDatasetRamUtilizer(root='data/binary_img_ds/train')
+    trainset = ImgDatasetRamUtilizer(root='data/binary_img_ds/train', max_images=2000)
     trainloader = torch.utils.data.DataLoader(
         trainset, batch_size=batch_size,
         shuffle=True, num_workers=0
     )
 
-    testset = ImgDatasetRamUtilizer(root='data/binary_img_ds/val')
+    testset = ImgDatasetRamUtilizer(root='data/binary_img_ds/val', max_images=500)
     testloader = torch.utils.data.DataLoader(
         testset, batch_size=batch_size,
         shuffle=True, num_workers=0
     )
+
+    print('train distribution')
+    for class_i, class_name in enumerate(classes):
+        print(f'{class_name} num = {len(trainset.y_data[trainset.y_data == class_i])}')
+
+    print('test distribution')
+    for class_i, class_name in enumerate(classes):
+        print(f'{class_name} num = {len(testset.y_data[testset.y_data == class_i])}')
 
     return trainloader, testloader
 
@@ -365,9 +385,6 @@ class Net(nn.Module):
         fig.show()
 
 
-classes = {0: 'health', 1: 'phyto'}
-
-
 def draw_predicts(ex_num: int = 4):
     fig, axes = plt.subplots(nrows=1, ncols=ex_num)
     for ax in axes:
@@ -387,7 +404,9 @@ if __name__ == '__main__':
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     print(f"{device} device choose")
 
+    classes = ['cat', 'dog']
     trainloader, testloader = get_img_dataloaders()
+    # classes = ['control', 'leaf rust']
     # trainloader, testloader = get_hp_dataloaders()
 
     transforms = torch.nn.Sequential(
