@@ -121,6 +121,26 @@ WHEAT_ALL_JUSTIFIED_EXP = {
     ]
 }
 
+WHEAT_ALL_WORKING_EXP = {
+    'health2': [
+        f'csv/sep-wheat-2/wheat-control/wheat-control-{i}_000'
+        for i in [0, 2]
+    ],
+    'puccinia phyto2': [
+        f'csv/sep-wheat-2/wheat-puccinia/wheat-puccinia-{i}_000'
+        for i in [5, 6]
+    ],
+
+    'health3': [
+        f'csv/sep-wheat-3/wheat-control/wheat_day{i}_control_000'
+        for i in [4, 5]
+    ],
+    'puccinia phyto3': [
+        f'csv/sep-wheat-3/wheat-puccinia/wheat_day{i}_experiment_000'
+        for i in [4, 5]
+    ]
+}
+
 DYNAMIC_WHEAT_CHECK = {
     # **{
     #     f'puccinia day {i}': [f'csv/sep-wheat-1/wheat-puccinia/wheat-puccinia-{i}']

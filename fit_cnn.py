@@ -18,7 +18,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from compare_snapshots import parse_classes
-from experiments import WHEAT_ALL_JUSTIFIED_EXP
+from experiments import WHEAT_ALL_JUSTIFIED_EXP, WHEAT_ALL_WORKING_EXP
 
 
 class HyperDataset(Dataset):
@@ -41,7 +41,8 @@ class HyperDataset(Dataset):
 def get_hp_dataloaders() -> Tuple[DataLoader, DataLoader]:
     classes_features_dict = parse_classes(
         classes_dict={
-            **WHEAT_ALL_JUSTIFIED_EXP
+            # **WHEAT_ALL_JUSTIFIED_EXP,
+            **WHEAT_ALL_WORKING_EXP
         },
         max_files_in_dir=100
     )
@@ -404,10 +405,10 @@ if __name__ == '__main__':
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     print(f"{device} device choose")
 
-    classes = ['cat', 'dog']
-    trainloader, testloader = get_img_dataloaders()
-    # classes = ['control', 'leaf rust']
-    # trainloader, testloader = get_hp_dataloaders()
+    # classes = ['cat', 'dog']
+    # trainloader, testloader = get_img_dataloaders()
+    classes = ['control', 'leaf rust']
+    trainloader, testloader = get_hp_dataloaders()
 
     transforms = torch.nn.Sequential(
         # transforms.RandomRotation(degrees=90),
