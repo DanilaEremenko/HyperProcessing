@@ -5,14 +5,14 @@ from typing import Tuple
 import pandas as pd
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 import torchvision
+from sklearn import metrics
 from torch.nn import Dropout
 from torchvision import transforms
 from torch.utils.data import Dataset, DataLoader
 import torch.optim as optim
 import torchmetrics
-from sklearn.model_selection import train_test_split, GridSearchCV, ParameterGrid
+from sklearn.model_selection import ParameterGrid
 import matplotlib.pyplot as plt
 
 import numpy as np
@@ -43,7 +43,7 @@ def get_hp_dataloaders() -> Tuple[DataLoader, DataLoader]:
         classes_dict={
             **WHEAT_ALL_JUSTIFIED_EXP
         },
-        max_files_in_dir=30
+        max_files_in_dir=100
     )
     interm_list = [
         (snapshot.name, class_name, snapshot.bands['all'].padded_data.swapaxes(0, 2).swapaxes(1, 2))
@@ -79,7 +79,7 @@ def get_hp_dataloaders() -> Tuple[DataLoader, DataLoader]:
     # slice range
     # x_data = x_data[:, 10:13]
 
-    # select channels (blue, green, infrared)
+    # select channels
     wl_list = [502, 466, 598, 718, 534, 766, 694, 650, 866, 602, 858]
     wl_ids = [(wl - 450) // 4 for wl in wl_list]
 
@@ -94,16 +94,18 @@ def get_hp_dataloaders() -> Tuple[DataLoader, DataLoader]:
 
     batch_size = 4
 
+    trainset = HyperDataset(x_data=x_train, y_data=y_train)
     trainloader = torch.utils.data.DataLoader(
-        dataset=HyperDataset(x_data=x_train, y_data=y_train),
+        dataset=trainset,
         batch_size=batch_size,
         shuffle=True,
         num_workers=0,
 
     )
 
+    testset = HyperDataset(x_data=x_test, y_data=y_test)
     testloader = torch.utils.data.DataLoader(
-        dataset=HyperDataset(x_data=x_test, y_data=y_test),
+        dataset=testset,
         batch_size=batch_size,
         shuffle=True,
         num_workers=0
@@ -213,11 +215,11 @@ class Net(nn.Module):
         self.verbose = verbose
 
         if activation == 'relu':
-            self.act_func = F.relu
+            self.act_func = torch.relu
         elif activation == 'tanh':
-            self.act_func = F.tanh
+            self.act_func = torch.tanh
         elif activation == 'sigmoid':
-            self.act_func = F.sigmoid
+            self.act_func = torch.sigmoid
         else:
             raise Exception(f"Unexpected activation = {activation}")
 
@@ -279,17 +281,9 @@ class Net(nn.Module):
             if self.verbose:
                 print(f'epoch {epoch_shift + epoch + 1}')
 
-            train_loss_sum = 0.0
-            train_acc_sum = 0.0
-            train_f1_sum = 0.0
-            train_matrix = np.zeros((2, 2))
+            y_pred = []
+            y_true = []
             for i, data in enumerate(trainloader):
-                if self.verbose:
-                    print(f'{len(trainloader)}/{i}')
-
-                if i > 500:
-                    break
-                # get the inputs; data is a list of [inputs, labels]
                 inputs, labels = data
                 inputs = transforms(inputs)
 
@@ -305,27 +299,22 @@ class Net(nn.Module):
                 loss.backward()
                 self.optimizer.step()
 
-                train_loss_sum += loss.item()
-                train_acc_sum += self.acc_metric(torch.sigmoid(outputs).int(), labels.int()).item()
-                train_f1_sum += self.f1_metric(torch.sigmoid(outputs).int(), labels.int()).item()
-                train_matrix += self.confusion_metric(torch.sigmoid(outputs).int(), labels.int()).cpu().detach().numpy()
+                y_pred.extend([float(y) for y in torch.sigmoid(outputs).cpu().detach().numpy()])
+                y_true.extend([float(y) for y in labels.cpu().detach().numpy()])
 
+            y_pred_class = np.array(y_pred) > 0.5
             self.train_history.append(
                 EpochMetrics(
-                    loss=train_loss_sum / len(trainloader),
-                    acc=train_acc_sum / len(trainloader),
-                    f1=train_f1_sum / len(trainloader),
-                    confusion_matrix=train_matrix
+                    loss=metrics.log_loss(y_true=y_true, y_pred=y_pred),
+                    acc=metrics.accuracy_score(y_true=y_true, y_pred=y_pred_class),
+                    f1=metrics.f1_score(y_true=y_true, y_pred=y_pred_class, pos_label=1),
+                    confusion_matrix=metrics.confusion_matrix(y_true=y_true, y_pred=y_pred_class)
                 )
             )
 
-            test_loss_sum = 0.0
-            test_acc_sum = 0.0
-            test_f1_sum = 0.0
-            test_matrix = np.zeros((2, 2))
+            y_pred = []
+            y_true = []
             for i, data in enumerate(testloader):
-                if i > 125:
-                    break
                 inputs, labels = data
                 inputs = inputs.to(device)
                 labels = labels.to(device)
@@ -334,19 +323,16 @@ class Net(nn.Module):
                 with torch.no_grad():
                     inputs = transforms(inputs)
                     outputs = self(inputs)
+                    y_pred.extend([float(y) for y in torch.sigmoid(outputs).cpu().detach().numpy()])
+                    y_true.extend([float(y) for y in labels.cpu().detach().numpy()])
 
-                    test_loss_sum += self.criterion(outputs, labels).item()
-                    test_acc_sum += self.acc_metric(torch.sigmoid(outputs).int(), labels.int()).item()
-                    test_f1_sum += self.f1_metric(torch.sigmoid(outputs).int(), labels.int()).item()
-                    test_matrix += self.confusion_metric(torch.sigmoid(outputs).int(),
-                                                         labels.int()).cpu().detach().numpy()
-
+            y_pred_class = np.array(y_pred) > 0.5
             self.test_history.append(
                 EpochMetrics(
-                    loss=test_loss_sum / len(testloader),
-                    acc=test_acc_sum / len(testloader),
-                    f1=test_f1_sum / len(testloader),
-                    confusion_matrix=test_matrix
+                    loss=metrics.log_loss(y_true=y_true, y_pred=y_pred),
+                    acc=metrics.accuracy_score(y_true=y_true, y_pred=y_pred_class),
+                    f1=metrics.f1_score(y_true=y_true, y_pred=y_pred_class, pos_label=1),
+                    confusion_matrix=metrics.confusion_matrix(y_true=y_true, y_pred=y_pred_class)
                 )
             )
 
@@ -409,10 +395,6 @@ if __name__ == '__main__':
         # transforms.RandomVerticalFlip(p=0.5)
         # transforms.RandomErasing()
     )
-
-    print(f"train size = {len(trainloader.dataset)} snapshots")
-    print(f"test size = {len(testloader.dataset)} snapshots")
-    classes = ('health', 'phyto')
 
     params_grid = ParameterGrid(
         {'lr': (0.001, 0.0001), 'activation': ['relu', 'tanh'], 'dropout': [0.1, 0.25]}
