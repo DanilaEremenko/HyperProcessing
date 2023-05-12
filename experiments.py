@@ -158,8 +158,8 @@ DYNAMIC_WHEAT_CHECK = {
     #
     # **{
     #     f'health day {pi}': [f'csv/sep-wheat-2/wheat-control/wheat-control-{hi}_000']
-    #     for hi, pi in zip([0, 2, 0, 2, 0], [4, 5, 6, 7, 8])
-    #     # for hi, pi in zip([0, 2, 3, 4, 5], [4, 5, 6, 7, 8])
+    #     # for hi, pi in zip([0, 2, 0, 2, 0], [4, 5, 6, 7, 8])
+    #     for hi, pi in zip([0, 2, 3, 4, 5], [4, 5, 6, 7, 8])
     # },
 
     **{
@@ -169,8 +169,8 @@ DYNAMIC_WHEAT_CHECK = {
 
     **{
         f'health day {pi}': [f'csv/sep-wheat-3/wheat-control/wheat_day{hi}_control_000']
-        for hi, pi in zip([4, 5, 4, 5, 4], [4, 5, 6, 7, 8])
-        # for hi, pi in zip([4, 5, 6, 7, 8], [4, 5, 6, 7, 8])
+        # for hi, pi in zip([4, 5, 4, 5, 4], [4, 5, 6, 7, 8])
+        for hi, pi in zip([4, 5, 6, 7, 8], [4, 5, 6, 7, 8])
     },
 
 }
