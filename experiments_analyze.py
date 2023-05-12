@@ -6,8 +6,7 @@ from experiments import WHEAT_ALL_CLEAR_EXP, WHEAT_ALL_JUSTIFIED_EXP, DYNAMIC_WH
 from snapshots_processing import parse_classes, SnapshotMeta, WLS
 import matplotlib
 
-font = {'family': 'Times New Roman',
-        'size': 28}
+font = {'family': 'Times New Roman', 'weight': 'normal', 'size': 44}
 matplotlib.rc('font', **font)
 
 import matplotlib.pyplot as plt
@@ -52,7 +51,7 @@ classes_colors = ['#96E637', '#FF9999']
 assert len(classes_colors) >= len(classes_prefs)
 days = sorted(list(set([int(key[-1]) for key in classes_features_dict.keys()])))
 exp_pref = 'exp3'
-days_postf = 'fair'
+days_postf = 'actual'
 
 ########################################################################################################################
 # ---------------------------------------- draw agg curves -------------------------------------------------------------
@@ -62,14 +61,16 @@ for day, ax in zip(days, axes):
     for class_pref, class_color in zip(classes_prefs, classes_colors):
         curr_curve = agg_curve(classes_features_dict[f'{class_pref} day {day}'])
         ax.plot(WLS, curr_curve, color=class_color, label=class_pref, linewidth=4)
-    ax.legend(loc="lower right")
+    ax.legend(loc="upper left")
     ax.set_title(f'day {day}')
     ax.set_ylim(4000, 11_000)
+    ax.set_yticks([5000, 7500, 10000])
+    ax.set_xticks([400, 500, 600, 700, 800])
     # ax.set_ylim(0, 1800)
 
 plt.tight_layout()
 
-plt.savefig(f'topic/{exp_pref}_curves_{days_postf}.png')
+plt.savefig(f'topic/{exp_pref}_curves_{days_postf}.png', dpi=200)
 plt.show()
 
 ########################################################################################################################
