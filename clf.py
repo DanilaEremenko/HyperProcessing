@@ -99,7 +99,7 @@ def clf_build(
             if clf_args is not None:
                 clf = make_pipeline(scaler, SVC(**clf_args))
             else:
-                common_args = {'max_iter': [1e5], 'random_state': [16]}
+                common_args = {'max_iter': [int(1e5)], 'random_state': [16]}
                 param_grid = [
                     {'C': [1e0, 1e1, 1e2, 1e3], 'kernel': ['linear'], **common_args},
                     {'C': [1e0, 1e1, 1e2, 1e3], 'gamma': [1e-1, 1e-2, 1e-3, 1e-4],'kernel': ['rbf', 'poly', 'sigmoid'], **common_args},
@@ -115,7 +115,7 @@ def clf_build(
         clf = clf_pretrained
 
     if dec_analyze:
-        clf_decision_analyze(clf=clf[-1], features=x_keys, class_labels=['health', 'phyto'])
+        clf_decision_analyze(clf=clf[-1], features=x_keys, class_labels=['health', 'disease'])
 
     samples_dict = {
         'train': {'y_true': y_train, 'y_pred': clf.predict(x_train)},
@@ -133,8 +133,8 @@ def clf_build(
             #     y_score=str_to_int(y_pred), y_true=str_to_int(y_true), pos_label=2)[:2]).__round__(2),
             f'{name}_kappa': metrics.cohen_kappa_score(y_true, y_pred).round(2),
             # f'{name}_f1_health': metrics.f1_score(y_true=y_true, y_pred=y_pred, pos_label="health").round(2),
-            f'{name}_f1_phyto': metrics.f1_score(y_true=y_true, y_pred=y_pred, pos_label="phyto").round(2),
-            f'{name}_confusion': metrics.confusion_matrix(y_true=y_true, y_pred=y_pred, labels=["health", "phyto"])
+            f'{name}_f1_disease': metrics.f1_score(y_true=y_true, y_pred=y_pred, pos_label="disease").round(2),
+            f'{name}_confusion': metrics.confusion_matrix(y_true=y_true, y_pred=y_pred, labels=["health", "disease"])
         }
 
     return {

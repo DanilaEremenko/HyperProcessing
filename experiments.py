@@ -121,6 +121,13 @@ WHEAT_ALL_JUSTIFIED_EXP = {
     ]
 }
 
+COCHLE_EXP = {
+    'control_day_4': ['csv/new_data/cochle-control4_000', ],
+    'control_day_5': ['csv/new_data/cochle-control5_000'],
+    'cochle_day_4': ['csv/new_data/cochle-experiment4_000'],
+    'cochle_day_5': ['csv/new_data/cochle-experiment5_000']
+}
+
 WHEAT_ALL_WORKING_EXP = {
     'health2': [
         f'csv/sep-wheat-2/wheat-control/wheat-control-{i}_000'

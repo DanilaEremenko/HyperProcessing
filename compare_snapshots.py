@@ -2,6 +2,7 @@ from pathlib import Path
 from typing import List, Dict
 
 import numpy as np
+from matplotlib import pyplot as plt
 from numpy import genfromtxt
 import os
 import pandas as pd
@@ -9,11 +10,11 @@ from pandas.core.dtypes.common import is_numeric_dtype
 
 from clf import clf_build, cfs
 from drawing import draw_hp_glasses, draw_snapshots_as_reflectance, draw_snapshots_in_features_space, \
-    draw_snapshots_in_all_paired_features_space, draw_tsne_plotly, draw_tsne_matplot
+    draw_snapshots_in_all_paired_features_space, draw_points_tsne
 from experiments import *
 from snapshots_processing import SnapshotMeta, BandData, BANDS_DICT, parse_classes
 
-RES_DIR = Path('sub-wheat_comparison_justified_each_wl_tf_mean_features')
+RES_DIR = Path('cochle_by_days')
 RES_DIR.mkdir(exist_ok=True)
 
 CLASSES_DICT = {
@@ -24,7 +25,8 @@ CLASSES_DICT = {
     # **WHEAT_ALL_FILTERED,
 
     # **WHEAT_ALL_CLEAR_EXP,
-    **WHEAT_ALL_JUSTIFIED_EXP
+    # **WHEAT_ALL_JUSTIFIED_EXP
+    **COCHLE_EXP
 }
 
 MAX_FILES_IN_DIR = 100
@@ -49,7 +51,8 @@ def get_features_df(group_features: Dict[str, List[SnapshotMeta]]) -> pd.DataFra
             print(f'getting features for {snapshot_meta.name}')
             features_dict = snapshot_meta.get_features_dict()
             features_dict['class'] = class_name
-            features_dict['class_generalized'] = 'phyto' if 'phyto' in class_name else 'health'
+            features_dict['class_generalized'] = \
+                'health' if ('health' in class_name or 'control' in class_name) else 'disease'
 
             features_list.append(features_dict)
 
@@ -90,7 +93,7 @@ def draw_files(classes_features_dict: Dict[str, List[SnapshotMeta]], features_df
 
     # draw snapshots in features space
     # draw_snapshots_in_features_space(features_df=features_df, res_dir=RES_DIR)
-    draw_snapshots_in_all_paired_features_space(features_df=features_df, res_dir=RES_DIR)
+    # draw_snapshots_in_all_paired_features_space(features_df=features_df, res_dir=RES_DIR)
 
 
 def main() -> pd.DataFrame:
@@ -134,16 +137,45 @@ def _get_top_tf_features(top_n: int) -> List[str]:
     )
 
 
+def get_potato_rows(health_days: List[int], phyto_days: List[int], subset: int):
+    if subset == 1:
+        assert all([health_day in [1, 2, 3, 4] for health_day in health_days])
+        assert all([phyto_day in [1, 2, 3, 4] for phyto_day in phyto_days])
+
+        health_ids = [i for i, dir in enumerate(list(features_df['dir']))
+                      if int(str(dir)[-5]) in health_days and 'control' in dir and 'singles' not in dir]
+
+        phyto_ids = [i for i, dir in enumerate(list(features_df['dir']))
+                     if int(str(dir)[-5]) in phyto_days and 'phyto' in dir and 'singles' not in dir]
+
+        return pd.concat([features_df.iloc[health_ids], features_df.iloc[phyto_ids]])
+    elif subset == 2:
+        assert all([health_day in [0, 1, 3, 4, 5, 6, 7] for health_day in health_days])
+        assert all([phyto_day in [0, 1, 3, 4, 5, 6, 7] for phyto_day in phyto_days])
+
+        health_ids = [i for i, dir in enumerate(list(features_df['dir']))
+                      if int(str(dir)[-5]) in health_days and 'control' in dir and 'singles' in dir]
+
+        phyto_ids = [i for i, dir in enumerate(list(features_df['dir']))
+                     if int(str(dir)[-5]) in phyto_days and 'phyto' in dir and 'singles' in dir]
+
+        return pd.concat([features_df.iloc[health_ids], features_df.iloc[phyto_ids]])
+    else:
+        raise Exception(f"Unexpected subset = {subset}")
+
+
 if __name__ == '__main__':
     # features_df = main()
     #
     # features_df.to_csv(f"{RES_DIR}/features.csv", index=False)
     features_df = pd.read_csv(f"{RES_DIR}/features.csv")
-    features_df.loc[:, 'class_generalized_num'] = [0 if 'health' in class_generalized else 1
-                                                   for class_generalized in list(features_df['class_generalized'])]
+    features_df.loc[:, 'class_generalized_num'] = [
+        0 if ('health' in class_generalized or 'control' in class_generalized) else 1
+        for class_generalized in list(features_df['class_generalized'])
+    ]
 
     stat_df = get_statistics_grouped_by_key_df(features_df=features_df, group_key='class')
-    # stat_df[stat_df['feature'] == 'hNDVI']
+    stat_df[stat_df['feature'] == 'hNDVI']
 
     features_corr_df = features_df[[key for key in features_df.keys()]].corr(numeric_only=True)
     features_corr_df_by_classes = {class_name: features_df[features_df['class'] == class_name]
@@ -159,8 +191,18 @@ if __name__ == '__main__':
         # eval_df=pd.concat([features_df.iloc[1600:1800], features_df.iloc[2000:2200]]),
         # eval_df=pd.concat([features_df.iloc[0:200], features_df.iloc[400:600]]),
         # fit_df=pd.concat([features_df.iloc[600:800], features_df.iloc[900:1100]]),
-        fit_df=pd.concat([features_df.iloc[0:200], features_df.iloc[600:800]]),
-        eval_df=pd.concat([features_df.iloc[1000:1200], features_df.iloc[1500:1700]]),
+        # fit_df=pd.concat([features_df.iloc[0:200], features_df.iloc[600:800]]),
+        # eval_df=pd.concat([features_df.iloc[1000:1200], features_df.iloc[1500:1700]]),
+        eval_df=pd.concat([
+            features_df[features_df['class'] == 'control_day_5'],
+            features_df[features_df['class'] == 'cochle_day_5'].iloc[0:17]
+        ]),
+        fit_df=pd.concat([
+            features_df[features_df['class'] == 'control_day_4'],
+            features_df[features_df['class'] == 'cochle_day_5'].iloc[17:34]
+        ]),
+        # fit_df=get_potato_rows(health_days=[1, 3, 4], phyto_days=[1, 3, 4], subset=1),
+        # eval_df=get_potato_rows(health_days=[5], phyto_days=[5], subset=2),
 
         # features_df=features_df.iloc[[i for i, name in enumerate(list(features_df['dir']))
         #                               if int(name[-1]) in [4, 5, 6, 7]]],
@@ -181,9 +223,9 @@ if __name__ == '__main__':
                 ]
                 # for range in BANDS_DICT.keys()
                 # for _range in [str(wl) for wl in range(514, 550, 4)]
-                # for _range in [wl for wl in np.arange(450, 871, 4)]
+                for _range in [wl for wl in np.arange(450, 871, 4)]
                 # for _range in [762, 650, 470, 766, 466, 706, 502, 718, 854, 722, 714]  # lr
-                for _range in [502, 466, 598, 718, 534, 766, 694, 650, 866, 602, 858]  # svm
+                # for _range in [502, 466, 598, 718, 534, 766, 694, 650, 866, 602, 858]  # svm
 
             ],
             *[
@@ -205,41 +247,27 @@ if __name__ == '__main__':
         scaler_fit_on_all=False
     )
 
-    # draw_tsne_matplot(
-    #     features_df=features_df,
-    #     # features_df=features_df.iloc[[i for i, name in enumerate(list(features_df['dir']))
-    #     #                               if int(name[-1]) in [4, 5, 6, 7]]],
-    #     # features_df.iloc[[i for i, name in enumerate(list(features_df['dir']))
-    #     #                   if '000' == name[-3:] and 'day' not in name and int(name[-5]) in [4, 5, 6, 7]]],
-    #     # features_df = features_df.iloc[[i for i, name in enumerate(list(features_df['dir']))
-    #     #                                 if 'day' in name and int(name.split('day')[1][0]) in [4, 5, 6, 7]]],
-    #     features=[
-    #         *[
-    #             f"{_range}_{pred}"
-    #             for pred in [
-    #                 'all_pixels_mean',
-    #                 # 'all_pixels_std',
-    #                 # 'dev_agg_in_pixels',
-    #                 # 'dev_agg_in_channels',  # good one for all bands
-    #                 # 'too_low_pxs_mean', 'too_high_pxs_mean',
-    #                 # 'cl_all_het', 'cl_low_het', 'cl_high_het', 'cl_high_part', 'cl_low_part',
-    #             ]
-    #             # for range in BANDS_DICT.keys()
-    #             # for _range in [str(wl) for wl in range(514, 550, 4)]
-    #             for _range in [wl for wl in np.arange(450, 871, 4)]
-    #             # for _range in [762, 650, 470, 766, 466, 706, 502, 718, 854, 722, 714]  # lr
-    #             # for _range in [502, 466, 598, 718, 534, 766, 694, 650, 866, 602, 858]  # svm
-    #
-    #         ],
-    #         *[
-    #             # 'ARI', 'BGI', 'BRI', 'CRI1', 'CRI2', 'CSI1', 'CSI2', 'CUR', 'gNDVI', 'hNDVI',
-    #             # 'PRI', 'PHRI', 'NDVI', 'MSR', 'TVI', 'SIPI', 'NPCI', 'ARI', 'GI', 'TCARI', 'PSRI', 'RVSI', 'NRI', 'YRI'
-    #             # 'NPCI'
-    #         ],
-    #         *[
-    #             # tf_feature for tf_feature in features_df.keys() if 'tf_gr' in tf_feature
-    #             # *list(_get_top_tf_features(top_n=20))
-    #         ]
-    #     ],
-    #     save_pref='topic/tsne_tf'
-    # )
+    wl_keys = [key for key in features_df.keys() if 'all_pixels_mean' in key]
+
+    common_draw_args = dict(s=300, edgecolors='black', linewidth=1)
+    plt.figure(figsize=(12, 8))
+    draw_points_tsne(
+        pt_groups=[
+            features_df[features_df['class'] == 'control_day_4'][wl_keys].to_numpy(),
+            features_df[features_df['class'] == 'control_day_5'][wl_keys].to_numpy(),
+            features_df[features_df['class'] == 'cochle_day_4'][wl_keys].to_numpy(),
+            features_df[features_df['class'] == 'cochle_day_5'][wl_keys].to_numpy()
+        ],
+        groups_draw_args=[
+            dict(color='#5DBB63', label='control day 4', **common_draw_args),
+            dict(color='#AEF359', label='control day 5', **common_draw_args),
+            dict(color='#D0312D', label='cochle day 4', **common_draw_args),
+            dict(color='#900D09', label='cochle day 5', **common_draw_args),
+
+        ]
+    )
+    plt.legend(fancybox=True, framealpha=0.5, bbox_to_anchor=(1.02, 1), loc='upper left', borderaxespad=0)
+    plt.tight_layout()
+    plt.savefig(f'{RES_DIR}/cochle_tsne.png')
+    plt.show()
+    plt.clf()

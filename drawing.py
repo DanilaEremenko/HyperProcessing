@@ -54,7 +54,7 @@ def draw_snapshots_as_reflectance(classes_dict: Dict[str, List[SnapshotMeta]], r
                         name=group_key,
                         legendgroup=group_key,
                         showlegend=row_i == 0,
-                        # x, then x reversed
+                        # px, then px reversed
                         x=[*band_value.wave_lengths, *band_value.wave_lengths[::-1]],
                         mode="markers+lines",
                         fill='toself',
@@ -82,7 +82,7 @@ def draw_snapshots_as_reflectance(classes_dict: Dict[str, List[SnapshotMeta]], r
                         name=group_key,
                         legendgroup=group_key,
                         showlegend=row_i == 0,
-                        # x, then x reversed
+                        # px, then px reversed
                         x=[*list(range(len(band_value.mean_in_pxs_by_ch))),
                            *list(range(len(band_value.mean_in_pxs_by_ch)))[::-1]],
                         mode="markers+lines",
@@ -104,6 +104,25 @@ def draw_snapshots_as_reflectance(classes_dict: Dict[str, List[SnapshotMeta]], r
     fig.write_html(res_path)
 
 
+def draw_points_tsne(pt_groups: List[np.ndarray], groups_draw_args):
+    assert len(pt_groups) == len(groups_draw_args)
+    all_features = np.vstack(pt_groups)
+    all_tsne = TSNE(perplexity=min(100, len(all_features) - 1)).fit_transform(all_features)
+    pt_groups_tsne = []
+    lb = 0
+    for pt_group in pt_groups:
+        pt_groups_tsne.append(all_tsne[lb:lb + len(pt_group)])
+        lb += len(pt_group)
+
+    for pt_group_tsne, group_draw_args in zip(pt_groups_tsne, groups_draw_args):
+        plt.scatter(pt_group_tsne[:, 0], pt_group_tsne[:, 1], **group_draw_args)
+
+    plt.xlabel('t-SNE dimension 1')
+    plt.ylabel('t-SNE dimension 2')
+    plt.legend()
+    plt.tight_layout()
+
+
 class Feature:
     def __init__(self, x_key: str, y_key: str, x_title: str, y_title: str, title: str):
         self.x_key = x_key
@@ -119,7 +138,7 @@ class Feature:
 # CLASS_COLORS = ['#4FD51D', '#FF9999', '#E70000', '#2ED30B', '#DD7777', '#C50000']
 
 # DIFFERENT WHEAT
-CLASS_COLORS = ['#4FD51D', '#FF9999', '#2ED30B', '#DD7777', '#41C426', '#D07272']
+CLASS_COLORS = ['#88FF6F', '#FF9999', '#2ED30B', '#DD7777', '#41C426', '#D07272']
 
 
 # CLASS_COLORS = ['#4FD51D', '#FF9999', '#4FD51D', '#FF9999']
@@ -304,8 +323,16 @@ def draw_tsne_plotly(features_df: pd.DataFrame, features: List[str], save_pref: 
         fig.write_html(f"{save_pref}.html")
 
 
+CLASS_NAME_MAP = {
+    'health2': 'health1',
+    'puccinia phyto2': 'puccinia 1',
+    'health3': 'health2',
+    'puccinia phyto3': 'puccinia 2',
+}
+
+
 def draw_tsne_matplot(features_df: pd.DataFrame, features: List[str], save_pref: Optional[str] = None):
-    tsne_arr = TSNE().fit_transform(features_df[features])
+    tsne_arr = TSNE(perplexity=100).fit_transform(features_df[features])
 
     plt.rcParams["figure.figsize"] = (10, 10)
 
@@ -318,12 +345,16 @@ def draw_tsne_matplot(features_df: pd.DataFrame, features: List[str], save_pref:
         plt.scatter(
             tsne_arr[curr_class_df.index, 0],
             tsne_arr[curr_class_df.index, 1],
-            label=f"{class_name}",
+            label=CLASS_NAME_MAP[class_name],
             color=color,
             edgecolor="black",
             s=200
         )
-    plt.legend(loc="upper right")
+    plt.xlabel('t-SNE dimension 1')
+    plt.ylabel('t-SNE dimension 2')
+    # plt.legend(loc="upper right")
+    plt.legend()
+    plt.tight_layout()
 
     if save_pref is None:
         plt.show()
@@ -374,11 +405,11 @@ def draw_hp_glasses(
                 )
                 if wl_id == 0 and snap_i == 0:
                     fig.add_annotation(
-                        # x=(norm_x + snap_i * max_snap_width).max(),
+                        # px=(norm_x + snap_i * max_snap_width).max(),
                         x=(-10 + snap_i * max_snap_width).max(),
                         y=(norm_y + class_i * max_snap_height).max(),
-                        xref="x",
-                        yref="y",
+                        xref="px",
+                        yref="py",
                         # text=f"{snapshot.name}/"
                         text=draw_class_names[class_i]
                         # f"[mean_pixel={snapshot.bands[bname].mean_in_pxs_by_ch.mean().round(2)}, "

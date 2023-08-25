@@ -66,7 +66,7 @@ def parse_tiff(img_path: Path, res_dir: Path, ref_threshold: Optional[float] = N
             ]
         )
         snap_name = f"{img_path.name.replace('cube.tiff', '')}view__{ci}"
-        curr_df.to_csv(res_dir.joinpath(f"{snap_name}.csv"))
+        curr_df.to_csv(res_dir.joinpath(f"{snap_name}.csv"), index=False)
 
         ROI_agg = ROI.mean(axis=-1)
         plt.imshow(ROI_agg)

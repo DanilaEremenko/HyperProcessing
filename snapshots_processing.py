@@ -476,9 +476,9 @@ class SnapshotMeta:
             }
 
             generate_func_map = {
-                # '^2': lambda x: x ** 2,
-                # '^3': lambda x: x ** 3,
-                # 'sin': lambda x: sin(x)
+                # '^2': lambda px: px ** 2,
+                # '^3': lambda px: px ** 3,
+                # 'sin': lambda px: sin(px)
             }
 
             curr_band_features = {
@@ -511,6 +511,8 @@ def parse_classes(classes_dict: Dict[str, List[str]], max_files_in_dir: int) -> 
         for dir_path in class_dirs:
             print(f"parsing snapshots from {dir_path}")
             files = list(os.listdir(dir_path))[:max_files_in_dir]
+            files = [file for file in files if 'csv' in file]
+            assert len(files) >= 1
             for file_id, file in enumerate(files):
                 print(f"  parsing file={file}")
                 all_data = genfromtxt(
