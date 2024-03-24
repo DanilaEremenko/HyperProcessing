@@ -1,21 +1,17 @@
-from pathlib import Path
 from typing import List, Dict
 
 import numpy as np
 from matplotlib import pyplot as plt
-from numpy import genfromtxt
-import os
 import pandas as pd
 from pandas.core.dtypes.common import is_numeric_dtype
 
 from clf import clf_build, cfs
-from drawing import draw_hp_glasses, draw_snapshots_as_reflectance, draw_snapshots_in_features_space, \
-    draw_snapshots_in_all_paired_features_space, draw_points_tsne
+from drawing import draw_hp_glasses, draw_points_tsne
 from experiments import *
-from snapshots_processing import SnapshotMeta, BandData, BANDS_DICT, parse_classes
+from snapshots_processing import SnapshotMeta, BANDS_DICT
 
-RES_DIR = Path('cochle_by_days')
-RES_DIR.mkdir(exist_ok=True)
+EXP_DIR = Path('rust_november_january_detailed')
+EXP_DIR.mkdir(exist_ok=True)
 
 CLASSES_DICT = {
     # **POTATO_OLD,
@@ -26,49 +22,16 @@ CLASSES_DICT = {
 
     # **WHEAT_ALL_CLEAR_EXP,
     # **WHEAT_ALL_JUSTIFIED_EXP
-    **COCHLE_EXP
+    # **COCHLE_ALL_EXP_DETAILED,
+    **LEAF_RUST_23_24_ALL_EXP_DETAILED
 }
 
-MAX_FILES_IN_DIR = 100
-
-
-def draw_klebs_np(ax, snapshot: np.ndarray, title: str):
-    # for i in range(0, len(snapshot) - 1, 10):
-    #     plt.plot(snapshot[0], snapshot[i + 1])
-    ax.plot(snapshot[0], snapshot[1:].mean(axis=0))
-    ax.set_xlim(400, 900)
-    ax.set_ylim(0, 10_000)
-    ax.set_title(title)
-
-
-def get_features_df(group_features: Dict[str, List[SnapshotMeta]]) -> pd.DataFrame:
-    features_list = []
-
-    for col_i, (class_name, class_snapshots) in enumerate(group_features.items()):
-        for row_i, snapshot_meta in enumerate(class_snapshots):
-            # cast for ide
-            snapshot_meta: SnapshotMeta = snapshot_meta
-            print(f'getting features for {snapshot_meta.name}')
-            features_dict = snapshot_meta.get_features_dict()
-            features_dict['class'] = class_name
-            features_dict['class_generalized'] = \
-                'health' if ('health' in class_name or 'control' in class_name) else 'disease'
-
-            features_list.append(features_dict)
-
-    features_df = pd.DataFrame(features_list)
-
-    # normalize features
-    # for key in features_df.keys():
-    #     if key != 'class':
-    #         features_df[key] /= features_df[key].max()
-
-    return features_df
+MAX_FILES_IN_DIR = 200
 
 
 def draw_files(classes_features_dict: Dict[str, List[SnapshotMeta]], features_df: pd.DataFrame):
     for band_name in BANDS_DICT.keys():
-        Path(f"{RES_DIR}/{band_name}").mkdir(exist_ok=True, parents=True)
+        Path(f"{EXP_DIR}/{band_name}").mkdir(exist_ok=True, parents=True)
 
     # draw hyperspectral glasses for every band
     for band_name in BANDS_DICT.keys():
@@ -80,7 +43,7 @@ def draw_files(classes_features_dict: Dict[str, List[SnapshotMeta]], features_df
                 all_classes=[classes_features_dict[key][i_st:i_fin] for key in classes_features_dict.keys()],
                 classes_names=[key for key in classes_features_dict.keys()],
                 bname=band_name,
-                res_path=f'{RES_DIR}/{band_name}/hp_glasses_for_snapshots[{i_st},{i_fin}].html'
+                res_path=f'{EXP_DIR}/{band_name}/hp_glasses_for_snapshots[{i_st},{i_fin}].html'
             )
 
     # draw channels and pixels curves
@@ -94,19 +57,6 @@ def draw_files(classes_features_dict: Dict[str, List[SnapshotMeta]], features_df
     # draw snapshots in features space
     # draw_snapshots_in_features_space(features_df=features_df, res_dir=RES_DIR)
     # draw_snapshots_in_all_paired_features_space(features_df=features_df, res_dir=RES_DIR)
-
-
-def main() -> pd.DataFrame:
-    classes_features_dict = parse_classes(
-        classes_dict=CLASSES_DICT,
-        max_files_in_dir=MAX_FILES_IN_DIR
-    )
-
-    features_df = get_features_df(group_features=classes_features_dict)
-
-    # draw_files(classes_features_dict=classes_features_dict, features_df=features_df)
-
-    return features_df
 
 
 def get_statistics_grouped_by_key_df(features_df: pd.DataFrame, group_key: str) -> pd.DataFrame:
@@ -165,10 +115,7 @@ def get_potato_rows(health_days: List[int], phyto_days: List[int], subset: int):
 
 
 if __name__ == '__main__':
-    # features_df = main()
-    #
-    # features_df.to_csv(f"{RES_DIR}/features.csv", index=False)
-    features_df = pd.read_csv(f"{RES_DIR}/features.csv")
+    features_df = pd.read_csv(f"{EXP_DIR}/features.csv")
     features_df.loc[:, 'class_generalized_num'] = [
         0 if ('health' in class_generalized or 'control' in class_generalized) else 1
         for class_generalized in list(features_df['class_generalized'])
@@ -194,12 +141,12 @@ if __name__ == '__main__':
         # fit_df=pd.concat([features_df.iloc[0:200], features_df.iloc[600:800]]),
         # eval_df=pd.concat([features_df.iloc[1000:1200], features_df.iloc[1500:1700]]),
         eval_df=pd.concat([
-            features_df[features_df['class'] == 'control_day_5'],
-            features_df[features_df['class'] == 'cochle_day_5'].iloc[0:17]
+            features_df[features_df['class'] == 'health1'],
+            features_df[features_df['class'] == 'cochle2']
         ]),
         fit_df=pd.concat([
-            features_df[features_df['class'] == 'control_day_4'],
-            features_df[features_df['class'] == 'cochle_day_5'].iloc[17:34]
+            features_df[features_df['class'] == 'health1'],
+            features_df[features_df['class'] == 'cochle3']
         ]),
         # fit_df=get_potato_rows(health_days=[1, 3, 4], phyto_days=[1, 3, 4], subset=1),
         # eval_df=get_potato_rows(health_days=[5], phyto_days=[5], subset=2),
@@ -252,22 +199,49 @@ if __name__ == '__main__':
     common_draw_args = dict(s=300, edgecolors='black', linewidth=1)
     plt.figure(figsize=(12, 8))
     draw_points_tsne(
+        # pt_groups=[
+        #     features_df[features_df['class'] == 'control_day_4'][wl_keys].to_numpy(),
+        #     features_df[features_df['class'] == 'control_day_5'][wl_keys].to_numpy(),
+        #     features_df[features_df['class'] == 'cochle_day_4'][wl_keys].to_numpy(),
+        #     features_df[features_df['class'] == 'cochle_day_5'][wl_keys].to_numpy()
+        # ],
+        # groups_draw_args=[
+        #     dict(color='#5DBB63', label='control day 4', **common_draw_args),
+        #     dict(color='#AEF359', label='control day 5', **common_draw_args),
+        #     dict(color='#D0312D', label='cochle day 4', **common_draw_args),
+        #     dict(color='#900D09', label='cochle day 5', **common_draw_args),
+        # ]
         pt_groups=[
-            features_df[features_df['class'] == 'control_day_4'][wl_keys].to_numpy(),
-            features_df[features_df['class'] == 'control_day_5'][wl_keys].to_numpy(),
-            features_df[features_df['class'] == 'cochle_day_4'][wl_keys].to_numpy(),
-            features_df[features_df['class'] == 'cochle_day_5'][wl_keys].to_numpy()
+            features_df[features_df['class'] == 'exp=3,group=control,day=1'][wl_keys].to_numpy(),
+            features_df[features_df['class'] == 'exp=3,group=control,day=2'][wl_keys].to_numpy(),
+            features_df[features_df['class'] == 'exp=3,group=control,day=3'][wl_keys].to_numpy(),
+            features_df[features_df['class'] == 'exp=3,group=control,day=4'][wl_keys].to_numpy(),
+            features_df[features_df['class'] == 'exp=3,group=control,day=5'][wl_keys].to_numpy(),
+
+            features_df[features_df['class'] == 'exp=3,group=cochle,day=1'][wl_keys].to_numpy(),
+            features_df[features_df['class'] == 'exp=3,group=cochle,day=2'][wl_keys].to_numpy(),
+            features_df[features_df['class'] == 'exp=3,group=cochle,day=3'][wl_keys].to_numpy(),
+            features_df[features_df['class'] == 'exp=3,group=cochle,day=4'][wl_keys].to_numpy(),
+            features_df[features_df['class'] == 'exp=3,group=cochle,day=5'][wl_keys].to_numpy()
+
         ],
         groups_draw_args=[
-            dict(color='#5DBB63', label='control day 4', **common_draw_args),
-            dict(color='#AEF359', label='control day 5', **common_draw_args),
-            dict(color='#D0312D', label='cochle day 4', **common_draw_args),
-            dict(color='#900D09', label='cochle day 5', **common_draw_args),
+            dict(color='#7CFF92', label='exp=3,group=control,day=1', **common_draw_args),
+            dict(color='#5BFD76', label='exp=3,group=control,day=2', **common_draw_args),
+            dict(color='#23F045', label='exp=3,group=control,day=3', **common_draw_args),
+            dict(color='#12CE31', label='exp=3,group=control,day=4', **common_draw_args),
+            dict(color='#02A91E', label='exp=3,group=control,day=5', **common_draw_args),
+
+            dict(color='#FF6056', label='exp=3,group=cochle,day=1', **common_draw_args),
+            dict(color='#EC291C', label='exp=3,group=cochle,day=2', **common_draw_args),
+            dict(color='#C92115', label='exp=3,group=cochle,day=3', **common_draw_args),
+            dict(color='#AF0C00', label='exp=3,group=cochle,day=4', **common_draw_args),
+            dict(color='#800B03', label='exp=3,group=cochle,day=5', **common_draw_args),
 
         ]
     )
     plt.legend(fancybox=True, framealpha=0.5, bbox_to_anchor=(1.02, 1), loc='upper left', borderaxespad=0)
     plt.tight_layout()
-    plt.savefig(f'{RES_DIR}/cochle_tsne.png')
+    plt.savefig(f'{EXP_DIR}/exp3_tsne.png')
     plt.show()
     plt.clf()
