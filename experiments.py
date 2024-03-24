@@ -1,3 +1,7 @@
+import os
+from datetime import datetime
+from pathlib import Path
+
 POTATO_OLD = {
     'potato health 1': [
         f'csv/control/gala-control-bp-{day}_000'
@@ -128,6 +132,136 @@ COCHLE_EXP = {
     'cochle_day_5': ['csv/new_data/cochle-experiment5_000']
 }
 
+COCHLE_ALL_EXP = {
+    'health1': [
+        f'csv/sep-cochle-1/cochle-contr{i}_000'
+        for i in [4, 5]
+    ],
+    'cochle1': [
+        f'csv/sep-cochle-1/cochle-exp{i}_000'
+        for i in [4, 5]
+    ],
+
+    'health2': [
+        f'csv/sep-cochle-2/cocle2-contr{i}_000'
+        for i in [1, 2, 3]
+    ],
+    'cochle2': [
+        f'csv/sep-cochle-2/cocle2-exp{i}_000'
+        for i in [1, 2, 3]
+    ],
+
+    'health3': [
+        f'csv/sep-cochle-3/cocle3-contr{i}_000'
+        for i in [1, 2, 3, 4, 5]
+    ],
+    'cochle3': [
+        f'csv/sep-cochle-3/cocle3-exp{i}_000'
+        for i in [1, 2, 3, 4, 5]
+    ]
+}
+
+COCHLE_ALL_EXP_DETAILED = {
+    **{
+        f'exp=1,group=control,day={i}': [f'csv/sep-cochle-1/cochle-contr{i}_000']
+        for i in [4, 5]
+    },
+    **{
+        f'exp=1,group=cochle,day={i}': [f'csv/sep-cochle-1/cochle-exp{i}_000']
+        for i in [4, 5]
+    },
+
+    **{
+        f'exp=2,group=control,day={i}': [f'csv/sep-cochle-2/cocle2-contr{i}_000']
+        for i in [1, 2, 3]
+    },
+    **{
+        f'exp=2,group=cochle,day={i}': [f'csv/sep-cochle-2/cocle2-exp{i}_000']
+        for i in [1, 2, 3]
+    },
+
+    **{
+        f'exp=3,group=control,day={i}': [f'csv/sep-cochle-3/cocle3-contr{i}_000']
+        for i in [1, 2, 3, 4, 5]
+    },
+    **{
+        f'exp=3,group=cochle,day={i}': [f'csv/sep-cochle-3/cocle3-exp{i}_000']
+        for i in [1, 2, 3, 4, 5]
+    }
+}
+
+
+def get_key_from_path_cocle_23(path: str) -> str:
+    day = int(path[-5])
+
+    group = Path(path).name.split('_')[1][:-1]
+    if group == 'contr':
+        group = 'control'
+    elif group == 'exp':
+        group = 'cocle'
+    else:
+        raise Exception(f"Undefined group = {group} in {path}")
+
+    date_str = Path(path).parent.name
+    date = datetime.strptime(date_str, '%Y_%m_%d')
+
+    exp_id = int(Path(path).name.replace('cocle', '')[0])
+    assert exp_id in [1, 2, 3], exp_id
+    return f'exp={exp_id},group={group},day={day}'
+
+
+COCHLE_ALL_EXP_DETAILED_LAST = {
+    **{
+        get_key_from_path_cocle_23(path=f"{dir}/{subdir}/{group_dir}"): [f"{dir}/{subdir}/{group_dir}"]
+        for exp_dir in ['csv/Leaf cochle3']
+        for dir, subdirs, files in os.walk(exp_dir)
+        for subdir in subdirs
+        if '2023_' in subdir
+        for group_dir in os.listdir(f"{dir}/{subdir}")
+    }
+
+}
+
+
+def get_key_from_path_rust_23_24(path: str) -> str:
+    day = int(path[-5])
+
+    group = Path(path).name.split('_')[1][:-1]
+    if group == 'contr':
+        group = 'control'
+    elif group == 'exp':
+        group = 'rust'
+    else:
+        raise Exception(f"Undefined group = {group} in {path}")
+
+    date_str = Path(path).parent.name
+    date = datetime.strptime(date_str, '%Y_%m_%d')
+
+    # return f'date={date_str},group={group},day={day}'
+    if '2023' in path:
+        return f'exp=2023_nov,group={group},day={day}'
+    elif '2024' in path and 'jan' in path:
+        return f'exp=2024_jan,group={group},day={day}'
+    elif '2024' in path and 'feb' in path:
+        return f'exp=2024_feb,group={group},day={day}'
+    else:
+        raise Exception(f"No year in path {path}")
+
+
+LEAF_RUST_23_24_ALL_EXP_DETAILED = {
+    **{
+        get_key_from_path_rust_23_24(path=f"{dir}/{subdir}/{group_dir}"): [f"{dir}/{subdir}/{group_dir}"]
+        for exp_dir in [
+            'csv/Leaf rust 1 november 2023',
+            'csv/Leaf rust 2 january 2024',
+            'csv/Leaf rust february 2024']
+        for dir, subdirs, files in os.walk(exp_dir)
+        for subdir in subdirs
+        if '2023_' in subdir or '2024_' in subdir
+        for group_dir in os.listdir(f"{dir}/{subdir}")
+    }
+
+}
 WHEAT_ALL_WORKING_EXP = {
     'health2': [
         f'csv/sep-wheat-2/wheat-control/wheat-control-{i}_000'
