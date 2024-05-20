@@ -23,6 +23,8 @@ def parse_tiff(img_path: Path, res_dir: Path, ref_threshold: Optional[float] = N
     gray /= gray.max()
     gray *= 254.
     gray = np.array(gray, dtype='uint8')
+    plt.imshow(image.mean(axis=-1))
+    plt.savefig(f"{res_dir}.png")
 
     original = image.copy()
     blur = cv2.GaussianBlur(gray, (5, 5), 0)
@@ -108,19 +110,22 @@ if __name__ == '__main__':
     #     threshold_mode='right'
     # )
 
+    parse_dir = Path(f'../../datasets/2024_05_17')
     img_files = [
         Path(f"{dir}/{file}")
-        for dir, subdirs, files in os.walk('Cubert2/2023_08_12/cochle-control4_000')
+        for group_name in ['contr', 'exp']
+        for dir, subdirs, files in os.walk(parse_dir)
         for file in files if 'tiff' in file and 'REF' in file
-
     ]
 
     for i, img_file in enumerate(img_files):
         print(f"parse snapshot {i}/{len(img_files)}")
-
         parse_tiff(
             img_path=img_file,
-            res_dir=Path('csv/new_data/').joinpath(img_file.parent.parent.name),
-            ref_threshold=1600,
-            threshold_mode='right'
+            res_dir=Path(f'csv/{parse_dir.name}').joinpath(img_file.parent.parent.name),
+            # ref_threshold=1600,
+            ref_threshold=1300,
+            threshold_mode='left',
+            # ref_threshold=1200,
+            # threshold_mode='left'
         )
